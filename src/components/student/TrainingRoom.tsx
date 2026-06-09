@@ -192,7 +192,7 @@ export function TrainingRoom({ session, weakStats }: TrainingRoomProps) {
         {currentQ.question_type !== 'SHORT_ANSWER' && currentQ.options ? (
           <div className="space-y-3">
             {optionKeys.map((key) => {
-              const optVal = (currentQ.options as Record<string, string>)[key];
+              const optVal = (currentQ.options as unknown as Record<string, string>)[key];
               const selected = answer === key;
               const revealed = state === 'REVEALED';
               const isRight  = key === currentQ.answer;

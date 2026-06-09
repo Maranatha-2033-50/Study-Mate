@@ -275,7 +275,7 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
           {currentQ.question_type !== 'SHORT_ANSWER' && currentQ.options ? (
             <div className="space-y-2.5">
               {optionKeys.map((key) => {
-                const optVal = (currentQ.options as Record<string, string>)[key];
+                const optVal = (currentQ.options as unknown as Record<string, string>)[key];
                 const selected = answers[currentQ.id] === key;
                 return (
                   <button

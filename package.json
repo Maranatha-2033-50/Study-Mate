@@ -4,12 +4,11 @@
   "private": true,
   "homepage": "https://maranatha-2033-50.github.io/Study-Mate",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "deploy": "next build && touch out/.nojekyll && gh-pages -d out --dotfiles"
-  },
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "next lint"
+},
   "dependencies": {
     "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.45.4",
