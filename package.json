@@ -2,11 +2,13 @@
   "name": "ai-learning-platform",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://maranatha-2033-50.github.io/Study-Mate",
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "deploy": "next build && touch out/.nojekyll && gh-pages -d out --dotfiles"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.1",
@@ -28,6 +30,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
     "eslint-config-next": "15.0.4",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
     "typescript": "^5.6.3"
