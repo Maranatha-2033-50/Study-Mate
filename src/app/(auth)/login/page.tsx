@@ -31,8 +31,7 @@ const SOCIAL_PROVIDERS = [
     className: 'bg-[#FEE500] border border-[#FEE500] text-black hover:brightness-95',
   },
   {
-    // Naver는 Supabase 기본 Provider에 포함되지 않으므로 커스텀 OIDC 설정이 필요합니다.
-    id: 'naver' as unknown as Provider,
+    id: 'custom:naver' as unknown as Provider,
     label: '네이버로 계속하기',
     icon: (
       <span className="text-white font-extrabold text-sm leading-none" aria-hidden="true">N</span>
