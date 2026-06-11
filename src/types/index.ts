@@ -31,7 +31,7 @@ export interface LearningChapter {
   level_2: string;
 }
 
-export type QuestionType = 'MULTIPLE_4' | 'MULTIPLE_5' | 'SHORT_ANSWER';
+export type QuestionType = 'MULTIPLE_4' | 'MULTIPLE_5' | 'SHORT_ANSWER' | 'ESSAY';
 export type Difficulty = '상' | '중' | '하';
 
 export interface QuestionOptions {
@@ -50,9 +50,19 @@ export interface UniversalQuestion {
   options: QuestionOptions | null;
   answer: string;
   difficulty: Difficulty;
+  explanation?: string | null;   // 학생용 한글 해설
   created_at: string;
   // joined
   learning_chapters?: LearningChapter;
+}
+
+export interface LanguageExamCard {
+  id:            string;   // OBJECTIVE: chapter_id / ESSAY: question_id
+  kind:          'OBJECTIVE' | 'ESSAY';
+  skill:         string;   // level_1 (Reading, Writing, ...)
+  title:         string;
+  questionCount: number;
+  href:          string;   // 시험방 라우트
 }
 
 export type SessionType = 'DIAGNOSTIC' | 'INFINITE_TRAINING' | 'SUBJECTIVE';

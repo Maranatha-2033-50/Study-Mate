@@ -12,6 +12,7 @@ export default function DiagnosticPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const categoryId   = searchParams.get('category') ?? '';
+  const chapterId    = searchParams.get('chapter') ?? '';   // 모의고사: 특정 단원만 출제
   const supabase     = createClient();
 
   const [phase,     setPhase]     = useState<Phase>('CONFIG');
@@ -39,11 +40,14 @@ export default function DiagnosticPage() {
 
     if (sessErr || !sess) { alert('세션 생성 실패'); setLoading(false); return; }
 
-    const { data: qs } = await supabase
+    // 모의고사(chapter 지정): 해당 단원 문항 전체 / 일반 진단: 카테고리 객관식 문항 표본
+    const base = supabase
       .from('universal_questions')
-      .select('*, learning_chapters!inner(category_id, level_1, level_2)')
-      .eq('learning_chapters.category_id', categoryId)
-      .limit(count);
+      .select('*, learning_chapters!inner(category_id, level_1, level_2)');
+    const query = chapterId
+      ? base.eq('chapter_id', chapterId)
+      : base.eq('learning_chapters.category_id', categoryId).neq('question_type', 'ESSAY').limit(count);
+    const { data: qs } = await query;
 
     if (!qs || qs.length === 0) {
       alert('해당 카테고리에 문제가 없습니다.');
@@ -61,30 +65,38 @@ export default function DiagnosticPage() {
     return (
       <div className="max-w-md mx-auto px-6 py-16 space-y-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">진단 평가 설정</h1>
-          <p className="text-sm text-gray-500 mt-1">실력 진단에 사용할 문항 수를 선택하세요.</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {chapterId ? '실전 모의고사' : '진단 평가 설정'}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {chapterId
+              ? '지문과 타이머가 작동하는 실전 시험방으로 입장합니다. 준비되면 시작하세요.'
+              : '실력 진단에 사용할 문항 수를 선택하세요.'}
+          </p>
         </div>
-        <div className="space-y-3">
-          {[10, 20, 30, 50].map((n) => (
-            <button
-              key={n}
-              onClick={() => setCount(n)}
-              className={`w-full py-3 rounded-xl border text-sm font-medium transition-colors
-                ${count === n
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'border-gray-200 text-gray-700 hover:border-blue-300'}`}
-            >
-              {n}문항
-            </button>
-          ))}
-        </div>
+        {!chapterId && (
+          <div className="space-y-3">
+            {[10, 20, 30, 50].map((n) => (
+              <button
+                key={n}
+                onClick={() => setCount(n)}
+                className={`w-full py-3 rounded-xl border text-sm font-medium transition-colors
+                  ${count === n
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'border-gray-200 text-gray-700 hover:border-blue-300'}`}
+              >
+                {n}문항
+              </button>
+            ))}
+          </div>
+        )}
         <button
           onClick={startSession}
           disabled={loading || !categoryId}
           className="w-full py-4 bg-blue-600 text-white rounded-xl font-semibold
                      hover:bg-blue-700 disabled:opacity-60 transition-colors"
         >
-          {loading ? '준비 중…' : '진단 시작'}
+          {loading ? '준비 중…' : chapterId ? '시험 시작' : '진단 시작'}
         </button>
       </div>
     );

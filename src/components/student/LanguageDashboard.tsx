@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import type { WeaknessStat, LearningCategory } from '@/types';
+import type { WeaknessStat, LearningCategory, LanguageExamCard } from '@/types';
 
 // ─── Band Score helper ────────────────────────────────────────────────────────
 function toBand(accuracy: number): number {
@@ -37,25 +37,16 @@ const SKILL_META: Record<string, { icon: string; color: string; bg: string; bord
 
 const SKILL_ORDER = ['Listening', 'Reading', 'Writing', 'Speaking'];
 
-// ─── Mock exam cards ──────────────────────────────────────────────────────────
-const MOCK_EXAMS = [
-  { id: 1, type: 'FULL',    title: 'Full Mock Test 1',           duration: 170, difficulty: '중', skills: 4 },
-  { id: 2, type: 'SECTION', title: 'Listening Practice Test 1',  duration: 40,  difficulty: '하', skill: 'Listening' },
-  { id: 3, type: 'SECTION', title: 'Reading Practice Test 1',    duration: 60,  difficulty: '중', skill: 'Reading' },
-  { id: 4, type: 'SECTION', title: 'Writing Task 1 Practice',    duration: 20,  difficulty: '하', skill: 'Writing' },
-  { id: 5, type: 'SECTION', title: 'Writing Task 2 Practice',    duration: 40,  difficulty: '상', skill: 'Writing' },
-  { id: 6, type: 'FULL',    title: 'Full Mock Test 2',           duration: 170, difficulty: '상', skills: 4 },
-] as const;
-
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface Props {
   category:   LearningCategory;
   stats:      WeaknessStat[];
   categoryId: string;
+  exams:      LanguageExamCard[];
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
-export function LanguageDashboard({ category, stats, categoryId }: Props) {
+export function LanguageDashboard({ category, stats, categoryId, exams }: Props) {
   const [activeSkill, setActiveSkill] = useState<string>('ALL');
 
   // Group stats by level_1 (skill)
@@ -90,10 +81,14 @@ export function LanguageDashboard({ category, stats, categoryId }: Props) {
   const overallBand   = toBand(overallAcc);
   const obc           = bandColor(overallBand);
 
-  // Filtered exams
+  // Filtered exams (실제 시드 데이터)
   const displayExams = activeSkill === 'ALL'
-    ? MOCK_EXAMS
-    : MOCK_EXAMS.filter(e => e.type === 'FULL' || (e as { skill?: string }).skill === activeSkill);
+    ? exams
+    : exams.filter(e => e.skill === activeSkill);
+
+  // 기본 시험 진입점 (empty-state / 미리보기 CTA) — 첫 객관식 시험 또는 일반 진단
+  const defaultExamHref =
+    exams.find(e => e.kind === 'OBJECTIVE')?.href ?? `/student/diagnostic?category=${categoryId}`;
 
   return (
     <div className="space-y-10">
@@ -205,7 +200,7 @@ export function LanguageDashboard({ category, stats, categoryId }: Props) {
         ) : (
           <div className="rounded-2xl border border-slate-100 bg-slate-50 p-10 text-center">
             <p className="text-slate-400 text-sm">진단 평가를 완료하면 영역별 점수가 표시됩니다.</p>
-            <Link href={`/student/diagnostic?category=${categoryId}`}
+            <Link href={defaultExamHref}
               className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl
                          bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors">
               진단 평가 시작하기 →
@@ -238,27 +233,28 @@ export function LanguageDashboard({ category, stats, categoryId }: Props) {
           </div>
         </div>
 
+        {displayExams.length === 0 ? (
+          <div className="rounded-2xl border border-slate-100 bg-slate-50 p-10 text-center">
+            <p className="text-slate-400 text-sm">이 영역에 준비된 모의고사가 아직 없습니다.</p>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayExams.map(exam => {
-            const skill  = (exam as { skill?: string }).skill;
-            const meta   = skill ? (SKILL_META[skill] ?? SKILL_META.default) : null;
-            const diffCls = exam.difficulty === '상' ? 'text-rose-600 bg-rose-50 border border-rose-200'
-                          : exam.difficulty === '중' ? 'text-amber-600 bg-amber-50 border border-amber-200'
-                          : 'text-emerald-600 bg-emerald-50 border border-emerald-200';
+            const meta    = SKILL_META[exam.skill] ?? SKILL_META.default;
+            const isEssay = exam.kind === 'ESSAY';
             return (
               <div key={exam.id}
                 className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3
                            hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group">
                 {/* 헤더 */}
                 <div className="flex items-center justify-between">
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full
-                    ${exam.type === 'FULL'
-                      ? 'bg-indigo-100 text-indigo-700'
-                      : meta ? `${meta.bg} ${meta.color}` : 'bg-slate-100 text-slate-600'}`}>
-                    {exam.type === 'FULL' ? '🗂 Full Test' : `${meta?.icon ?? ''} ${skill}`}
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${meta.bg} ${meta.color}`}>
+                    {meta.icon} {exam.skill}
                   </span>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${diffCls}`}>
-                    난이도 {exam.difficulty}
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg
+                    ${isEssay ? 'text-amber-600 bg-amber-50 border border-amber-200'
+                              : 'text-emerald-600 bg-emerald-50 border border-emerald-200'}`}>
+                    {isEssay ? 'AI 첨삭' : '객관식'}
                   </span>
                 </div>
 
@@ -269,21 +265,21 @@ export function LanguageDashboard({ category, stats, categoryId }: Props) {
 
                 {/* 메타 */}
                 <div className="flex items-center gap-3 text-xs text-slate-400">
-                  <span>⏱ {exam.duration}분</span>
-                  {exam.type === 'FULL' && <span>📋 {(exam as { skills?: number }).skills}개 섹션</span>}
+                  <span>{isEssay ? '✍️ 에세이 1문항' : `📋 ${exam.questionCount}문항`}</span>
                 </div>
 
                 {/* CTA */}
-                <Link href={`/student/diagnostic?category=${categoryId}`}
+                <Link href={exam.href}
                   className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl
                              text-xs font-semibold bg-slate-900 text-white
                              hover:bg-indigo-600 transition-colors duration-200">
-                  시작하기 →
+                  {isEssay ? '시험 시작 (AI 첨삭) →' : '시험 시작 →'}
                 </Link>
               </div>
             );
           })}
         </div>
+        )}
       </div>
 
       {/* ── 실전 시험 환경 (2열 그리드) ── */}
@@ -389,7 +385,7 @@ export function LanguageDashboard({ category, stats, categoryId }: Props) {
                 </p>
               </div>
 
-              <Link href={`/student/diagnostic?category=${categoryId}`}
+              <Link href={defaultExamHref}
                 className="w-full inline-flex items-center justify-center gap-2
                            py-3.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold
                            hover:bg-indigo-700 transition-colors shadow-sm">
