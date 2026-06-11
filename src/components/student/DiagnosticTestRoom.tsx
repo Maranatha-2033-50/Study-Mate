@@ -59,25 +59,30 @@ function MD({ children }: { children: string }) {
 }
 
 // ── 지문 / 질문 분리 ──────────────────────────────────────
-// DB에 저장된 literal \n 을 실제 개행으로 변환한 뒤
-// 이중개행(\n\n) 기준으로 단락을 나누고,
-// 맨 마지막 단락이 질문("?"로 끝나거나 **로 시작)이면 분리한다.
+// DB에 저장된 literal \n 을 실제 개행으로 변환한 뒤 이중개행(\n\n)으로 단락을 나눈다.
+// 번호가 매겨진 굵은 문항 지시문("**1.", "**3.")을 기준으로 그 앞 단락 전체를 지문으로,
+// 지시문부터 끝까지(단답형의 빈칸 문장 포함)를 질문으로 분리한다.
 function splitContent(raw: string): { passage: string; question: string } {
-  const text = raw.replace(/\\n/g, '\n');
+  const text = raw.replace(/\\n/g, '\n').trim();
   const paras = text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
   if (paras.length <= 1) return { passage: '', question: text };
 
-  const last = paras[paras.length - 1];
-  const isQuestion =
-    last.startsWith('**') ||
-    last.endsWith('?') ||
-    /^[가-힣a-zA-Z].{5,}\?$/.test(last.replace(/\*\*/g, '').trim());
+  // 1순위: "**N." 형태의 번호 매겨진 문항 지시문 단락
+  let qIdx = paras.findIndex((p) => /^\*\*\s*\d+[.).]/.test(p));
 
-  if (isQuestion) {
+  // 2순위: 마지막 단락이 질문 형태(**…** 또는 ?로 끝남)인 경우
+  if (qIdx === -1) {
+    const last = paras[paras.length - 1];
+    const lastIsQuestion = last.startsWith('**') || /\?\**$/.test(last);
+    qIdx = lastIsQuestion ? paras.length - 1 : -1;
+  }
+
+  // 지문이 질문 앞에 실제로 존재할 때만 분리
+  if (qIdx > 0) {
     return {
-      passage: paras.slice(0, -1).join('\n\n'),
-      question: last,
+      passage: paras.slice(0, qIdx).join('\n\n'),
+      question: paras.slice(qIdx).join('\n\n'),
     };
   }
   return { passage: '', question: text };
