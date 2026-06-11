@@ -55,7 +55,7 @@ export interface UniversalQuestion {
   learning_chapters?: LearningChapter;
 }
 
-export type SessionType = 'DIAGNOSTIC' | 'INFINITE_TRAINING';
+export type SessionType = 'DIAGNOSTIC' | 'INFINITE_TRAINING' | 'SUBJECTIVE';
 export type SessionStatus = 'IN_PROGRESS' | 'COMPLETED';
 
 export type LimitType = 'COUNT' | 'TIME';
@@ -141,4 +141,36 @@ export interface StudentWithStats {
   profile: Profile;
   weakness_stats: WeaknessStat[];
   recent_sessions: StudySession[];
+}
+
+// ─── Subjective Grading (IELTS/DELF Writing·Speaking) ──────────────────────────
+
+export type SubjectiveExamType = 'IELTS' | 'DELF';
+
+export interface SubjectiveCorrection {
+  original:  string;   // 학생이 쓴 틀린 문장
+  corrected: string;   // 교정된 문장
+  rationale: string;   // 한글 교정 이유
+}
+
+export interface SubjectiveCriterion {
+  score:   number;     // 항목 점수 (IELTS: band 0–9, DELF: 0–25)
+  comment: string;     // 항목별 한 줄 평
+}
+
+export interface SubjectiveFeedback {
+  overall_score:    number;                            // 최종 예상 Band Score / 등급
+  criteria:         Record<string, SubjectiveCriterion>; // 영역별 점수 + 한 줄 평
+  corrections:      SubjectiveCorrection[];            // 문장별 첨삭
+  general_feedback: string;                            // [학생용] 실전 오답노트 총평 (한국어)
+  tutor_guide:      string;                            // [강사용] AI 코칭 백서 (한국어 마크다운)
+}
+
+export interface SubjectiveGradeRequest {
+  exam_type:     SubjectiveExamType;
+  question_text: string;
+  answer:        string;        // essay 텍스트 또는 speaking 발화 전사
+  user_id?:      string;
+  session_id?:   string;        // 있으면 user_attempts에 결과 저장
+  question_id?:  string;
 }

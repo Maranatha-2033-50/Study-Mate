@@ -1,9 +1,48 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Sparkles, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { RadarChart } from '@/components/ui/RadarChart';
-import type { Profile, WeaknessStat, StudySession, UserAttempt, UniversalQuestion } from '@/types';
+import type {
+  Profile, WeaknessStat, StudySession, UserAttempt, UniversalQuestion, SubjectiveFeedback,
+} from '@/types';
+
+interface CoachingRow {
+  created_at: string;
+  feedback:   SubjectiveFeedback;
+}
+
+// ── tutor_guide 마크다운 렌더러 ──
+function CoachingMD({ children }: { children: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        h2: ({ children }) => (
+          <h2 className="text-base font-bold text-slate-800 mt-4 mb-2 first:mt-0">{children}</h2>
+        ),
+        h3: ({ children }) => (
+          <h3 className="text-sm font-bold text-indigo-700 mt-3 mb-1.5">{children}</h3>
+        ),
+        p: ({ children }) => <p className="text-sm text-slate-600 leading-7 mb-2">{children}</p>,
+        strong: ({ children }) => <strong className="font-semibold text-slate-900">{children}</strong>,
+        ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-2 text-sm text-slate-600">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-2 text-sm text-slate-600">{children}</ol>,
+        li: ({ children }) => <li className="leading-6">{children}</li>,
+        blockquote: ({ children }) => (
+          <blockquote className="border-l-4 border-indigo-300 bg-indigo-50/50 pl-4 py-2 my-2 text-sm text-slate-600 rounded-r">
+            {children}
+          </blockquote>
+        ),
+      }}
+    >
+      {children}
+    </ReactMarkdown>
+  );
+}
 
 interface RecentAttemptRow {
   attempt: UserAttempt;
@@ -20,6 +59,8 @@ export function StudentReport({ student }: StudentReportProps) {
   const [stats,    setStats]    = useState<WeaknessStat[]>([]);
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [recent,   setRecent]   = useState<RecentAttemptRow[]>([]);
+  const [coaching, setCoaching] = useState<CoachingRow[]>([]);
+  const [coachIdx, setCoachIdx] = useState(0);
   const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
@@ -65,6 +106,23 @@ export function StudentReport({ student }: StudentReportProps) {
             }))
           );
         }
+      }
+
+      // 주관식 AI 코칭 백서 (feedback 컬럼이 채워진 제출본만)
+      const { data: subj } = await supabase
+        .from('user_attempts')
+        .select('created_at, feedback, study_sessions!inner(user_id)')
+        .eq('study_sessions.user_id', student.id)
+        .not('feedback', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      if (mounted && subj) {
+        setCoaching(
+          (subj as unknown as { created_at: string; feedback: SubjectiveFeedback }[])
+            .filter((r) => r.feedback?.tutor_guide)
+            .map((r) => ({ created_at: r.created_at, feedback: r.feedback }))
+        );
       }
 
       setLoading(false);
@@ -200,6 +258,50 @@ export function StudentReport({ student }: StudentReportProps) {
           </div>
         )}
       </div>
+
+      {/* ══ [강사 전용] AI 코칭 백서 ══ */}
+      {coaching.length > 0 && (() => {
+        const active = coaching[coachIdx] ?? coaching[0];
+        const fb = active.feedback;
+        return (
+          <div className="rounded-2xl border-2 border-indigo-200 bg-gradient-to-br from-indigo-50/60 to-white shadow-sm overflow-hidden">
+            {/* 헤더 */}
+            <div className="flex items-center gap-2 px-6 py-4 bg-indigo-600 text-white">
+              <Sparkles size={18} />
+              <h3 className="font-bold">AI 코칭 백서</h3>
+              <span className="flex items-center gap-1 ml-2 text-[11px] font-semibold bg-white/20 px-2 py-0.5 rounded-full">
+                <Lock size={11} /> 강사 전용
+              </span>
+              <span className="ml-auto text-xs text-indigo-200">
+                예상 점수 {fb.overall_score}
+              </span>
+            </div>
+
+            {/* 제출본 선택 탭 (2개 이상일 때) */}
+            {coaching.length > 1 && (
+              <div className="flex gap-1.5 flex-wrap px-6 pt-4">
+                {coaching.map((c, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCoachIdx(i)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors
+                      ${i === coachIdx
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
+                  >
+                    {new Date(c.created_at).toLocaleDateString('ko-KR')}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* tutor_guide 마크다운 */}
+            <div className="px-6 py-5">
+              <CoachingMD>{fb.tutor_guide}</CoachingMD>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
