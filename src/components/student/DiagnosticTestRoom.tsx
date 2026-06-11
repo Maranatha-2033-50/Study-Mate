@@ -121,6 +121,7 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
   const [isSubmitting, setIsSubmitting]  = useState(false);
   const [submitted,    setSubmitted]     = useState(false);
   const [result,       setResult]        = useState<{ correct: number; total: number } | null>(null);
+  const [isReviewMode, setIsReviewMode]  = useState(false);   // 제출 후 오답노트 리뷰 모드
 
   const questionIds = questions.map((q) => q.id);
   const { getElapsed, switchQuestion, pause } = useTimer(questionIds);
@@ -130,8 +131,9 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
     if (questions[currentIdx]) switchQuestion(questions[currentIdx].id);
   }, [currentIdx, questions, switchQuestion]);
 
-  // 자동 임시저장
+  // 자동 임시저장 (응시 중에만)
   useEffect(() => {
+    if (isReviewMode) return;
     saveDraft({
       sessionId: session.id,
       answers,
@@ -172,6 +174,14 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
     : '';
   const optionKeys = currentQ?.options ? Object.keys(currentQ.options) : [];
 
+  // 정오답 판정 — /api/grade 와 동일 규칙(trim + 대문자)
+  const reviewCorrect = useCallback(
+    (q: UniversalQuestion) =>
+      (answers[q.id] ?? '').trim().toUpperCase() === (q.answer ?? '').trim().toUpperCase(),
+    [answers],
+  );
+  const currentCorrect = currentQ ? reviewCorrect(currentQ) : false;
+
   const selectAnswer = useCallback((key: string) => {
     setAnswers((prev) => ({ ...prev, [currentQ.id]: key }));
   }, [currentQ]);
@@ -203,7 +213,8 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
       clearDraft(session.id);
       setResult({ correct: correct_count, total });
       setSubmitted(true);
-      onComplete();
+      setIsReviewMode(true);   // 점수만 띄우지 않고 문항별 오답노트 리뷰로 전환
+      setCurrentIdx(0);
     } catch {
       alert('제출 중 오류가 발생했습니다. 다시 시도해 주세요.');
     } finally {
@@ -211,8 +222,8 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
     }
   };
 
-  // ── 결과 화면 ──
-  if (submitted && result) {
+  // ── 결과 화면 (리뷰 모드 진입 전 폴백) ──
+  if (submitted && result && !isReviewMode) {
     const pct = Math.round((result.correct / result.total) * 100);
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -260,36 +271,69 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
 
         {/* 문항 번호 네비게이터 */}
         <div className="flex-none px-4 py-2.5 border-b border-slate-200 bg-white flex flex-wrap gap-1.5 items-center">
-          {questions.map((q, i) => (
-            <button
-              key={q.id}
-              onClick={() => navigate(i)}
-              className={`w-7 h-7 rounded-lg text-xs font-bold transition-colors
-                ${i === currentIdx
-                  ? 'bg-indigo-600 text-white'
-                  : answers[q.id]
-                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
-            >
-              {i + 1}
-            </button>
-          ))}
+          {questions.map((q, i) => {
+            const cur = i === currentIdx;
+            let cls: string;
+            if (isReviewMode) {
+              cls = (reviewCorrect(q)
+                ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                : 'bg-rose-100 text-rose-600 border-rose-300')
+                + (cur ? ' ring-2 ring-indigo-500' : '');
+            } else if (cur) {
+              cls = 'bg-indigo-600 text-white border-transparent';
+            } else if (answers[q.id]) {
+              cls = 'bg-emerald-100 text-emerald-700 border-emerald-300';
+            } else {
+              cls = 'bg-slate-100 text-slate-500 border-transparent hover:bg-slate-200';
+            }
+            return (
+              <button
+                key={q.id}
+                onClick={() => navigate(i)}
+                className={`w-7 h-7 rounded-lg text-xs font-bold border transition-colors ${cls}`}
+              >
+                {i + 1}
+              </button>
+            );
+          })}
           <div className="ml-auto flex items-center gap-3 text-xs text-slate-400">
-            <span>{Object.keys(answers).length} / {questions.length} 답변</span>
+            <span>
+              {isReviewMode
+                ? '오답노트 리뷰'
+                : `${Object.keys(answers).length} / ${questions.length} 답변`}
+            </span>
           </div>
         </div>
 
         {/* 문제 본문 */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
+          {/* 리뷰 점수 요약 배너 */}
+          {isReviewMode && result && (
+            <div className="mb-5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-5 py-3 flex items-center justify-between">
+              <span className="text-sm font-bold">📝 오답노트 리뷰</span>
+              <span className="text-sm">
+                {result.correct}/{result.total} 정답 ·{' '}
+                <span className="font-bold">{Math.round((result.correct / result.total) * 100)}점</span>
+              </span>
+            </div>
+          )}
+
           {/* 문항 메타 */}
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xs font-semibold text-slate-400">Q{currentIdx + 1}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${diffColor}`}>
               {currentQ.difficulty}
             </span>
-            <div className="ml-auto">
-              <LiveTimer questionId={currentQ.id} getElapsed={getElapsed} />
-            </div>
+            {isReviewMode ? (
+              <span className={`ml-auto text-sm font-bold px-3 py-0.5 rounded-full
+                ${currentCorrect ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-600'}`}>
+                {currentCorrect ? '✅ 정답' : '❌ 오답'}
+              </span>
+            ) : (
+              <div className="ml-auto">
+                <LiveTimer questionId={currentQ.id} getElapsed={getElapsed} />
+              </div>
+            )}
           </div>
 
           {/* 질문 텍스트 */}
@@ -303,6 +347,31 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
               {optionKeys.map((key) => {
                 const optVal = (currentQ.options as unknown as Record<string, string>)[key];
                 const selected = answers[currentQ.id] === key;
+
+                // ── 리뷰 모드: 정답=초록 / 내가 고른 오답=빨강 ──
+                if (isReviewMode) {
+                  const isCorrectOpt = key.trim().toUpperCase() === (currentQ.answer ?? '').trim().toUpperCase();
+                  const isWrongPick  = selected && !isCorrectOpt;
+                  return (
+                    <div key={key}
+                      className={`w-full text-left px-4 py-3 rounded-xl border text-sm flex items-start gap-3
+                        ${isCorrectOpt ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                          : isWrongPick ? 'border-rose-300 bg-rose-50 text-rose-900'
+                          : 'border-slate-200 bg-white text-slate-400'}`}>
+                      <span className={`w-6 h-6 flex-none rounded-lg text-xs font-bold flex items-center justify-center mt-0.5
+                        ${isCorrectOpt ? 'bg-emerald-500 text-white'
+                          : isWrongPick ? 'bg-rose-500 text-white'
+                          : 'bg-slate-100 text-slate-500'}`}>
+                        {key}
+                      </span>
+                      <span className="flex-1">{optVal}</span>
+                      {isCorrectOpt && <span className="text-emerald-600 text-xs font-bold whitespace-nowrap">정답 ✓</span>}
+                      {isWrongPick  && <span className="text-rose-500 text-xs font-bold whitespace-nowrap">내 선택 ✕</span>}
+                    </div>
+                  );
+                }
+
+                // ── 응시 모드 ──
                 return (
                   <button
                     key={key}
@@ -323,6 +392,23 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
                 );
               })}
             </div>
+          ) : isReviewMode ? (
+            // ── 단답형 리뷰: 내 답안 vs 정답 ──
+            <div className="space-y-2.5">
+              <div className={`px-4 py-3 rounded-xl border text-sm
+                ${currentCorrect ? 'border-emerald-300 bg-emerald-50' : 'border-rose-300 bg-rose-50'}`}>
+                <p className="text-xs text-slate-500 mb-0.5">내 답안</p>
+                <p className={`font-medium ${currentCorrect ? 'text-emerald-800' : 'text-rose-700'}`}>
+                  {answers[currentQ.id]?.trim() || '(미답)'}
+                </p>
+              </div>
+              {!currentCorrect && (
+                <div className="px-4 py-3 rounded-xl border border-emerald-300 bg-emerald-50 text-sm">
+                  <p className="text-xs text-slate-500 mb-0.5">정답</p>
+                  <p className="font-medium text-emerald-800">{currentQ.answer}</p>
+                </div>
+              )}
+            </div>
           ) : (
             <input
               type="text"
@@ -332,6 +418,16 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
               className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm
                          focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             />
+          )}
+
+          {/* ── 한글 해설 판독기 (리뷰 모드) ── */}
+          {isReviewMode && currentQ.explanation && (
+            <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50/70 p-5">
+              <p className="flex items-center gap-1.5 text-sm font-bold text-indigo-700 mb-2">
+                📘 해설
+              </p>
+              <MD>{currentQ.explanation.replace(/\\n/g, '\n')}</MD>
+            </div>
           )}
         </div>
 
@@ -353,6 +449,14 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
                          text-white text-sm font-semibold hover:bg-indigo-700"
             >
               다음 <ChevronRight size={16} />
+            </button>
+          ) : isReviewMode ? (
+            <button
+              onClick={onComplete}
+              className="px-6 py-2 rounded-xl bg-indigo-600 text-white text-sm
+                         font-semibold hover:bg-indigo-700"
+            >
+              리뷰 완료 → 결과
             </button>
           ) : (
             <button
