@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { AchievementWidget } from '@/components/student/AchievementWidget';
 import { RelativePerformance } from '@/components/student/RelativePerformance';
+import { buildExams, type ExamQuestionRow } from '@/lib/exams';
 import {
   ClipboardCheck,
   Target,
@@ -11,6 +12,7 @@ import {
   Zap,
   Award,
   BookOpen,
+  FileText,
 } from 'lucide-react';
 import type { WeaknessStat, LearningCategory } from '@/types';
 
@@ -120,6 +122,25 @@ export default async function StudentDashboardPage({
     .eq('category_id', activeCategoryId);
 
   const stats: WeaknessStat[] = statsRaw ?? [];
+
+  /* 실전 모의고사 카탈로그 (단원별) — 전 카테고리 공용 */
+  const { data: examRows } = await supabase
+    .from('universal_questions')
+    .select('id, question_type, chapter_id, learning_chapters!inner(category_id, level_1, level_2)')
+    .eq('learning_chapters.category_id', activeCategoryId);
+
+  const exams = buildExams((examRows ?? []) as unknown as ExamQuestionRow[], activeCategoryId);
+
+  /* 전체 유저 평균 정답률 (상대 위치 지표용) — category_skill_averages 뷰 */
+  const { data: avgRows } = await supabase
+    .from('category_skill_averages')
+    .select('level_1, avg_accuracy')
+    .eq('category_id', activeCategoryId);
+
+  const systemAverages: Record<string, number> = {};
+  for (const r of (avgRows ?? []) as { level_1: string; avg_accuracy: number }[]) {
+    if (r.avg_accuracy != null) systemAverages[r.level_1] = Number(r.avg_accuracy);
+  }
 
   /* 세션 트렌드 */
   const { data: sessionsRaw } = await supabase
@@ -260,6 +281,54 @@ export default async function StudentDashboardPage({
         />
       </div>
 
+      {/* ── 실전 모의고사 카탈로그 (단원별) ── */}
+      {exams.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-5">
+            <FileText className="text-indigo-500" size={18} />
+            <h2 className="text-lg font-bold text-slate-900">실전 모의고사</h2>
+            <span className="ml-auto text-xs text-slate-400">{exams.length}개 세트</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {exams.map((exam) => {
+              const isEssay = exam.kind === 'ESSAY';
+              return (
+                <div
+                  key={exam.id}
+                  className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3
+                             hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
+                      {exam.skill}
+                    </span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg
+                      ${isEssay ? 'text-amber-600 bg-amber-50 border border-amber-200'
+                                : 'text-emerald-600 bg-emerald-50 border border-emerald-200'}`}>
+                      {isEssay ? 'AI 첨삭' : '객관식'}
+                    </span>
+                  </div>
+                  <p className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors leading-snug flex-1">
+                    {exam.title}
+                  </p>
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <span>{isEssay ? '✍️ 에세이 1문항' : `📋 ${exam.questionCount}문항`}</span>
+                  </div>
+                  <Link
+                    href={exam.href}
+                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl
+                               text-xs font-semibold bg-slate-900 text-white
+                               hover:bg-indigo-600 transition-colors duration-200"
+                  >
+                    {isEssay ? '시험 시작 (AI 첨삭) →' : '시험 시작 →'}
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── 성취 현황 ── */}
       <div>
         <div className="flex items-center gap-2 mb-5">
@@ -275,7 +344,7 @@ export default async function StudentDashboardPage({
       </div>
 
       {/* ── 상대 위치 지표 ── */}
-      {stats.length > 0 && <RelativePerformance stats={stats} />}
+      {stats.length > 0 && <RelativePerformance stats={stats} systemAverages={systemAverages} />}
     </div>
   );
 }
