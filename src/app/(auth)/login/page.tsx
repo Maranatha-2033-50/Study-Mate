@@ -56,12 +56,22 @@ function LoginContent() {
   const [role,     setRole]     = useState<'student' | 'tutor'>('student');
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
+  const [verifyMsg, setVerifyMsg] = useState(false);
+
+  // HashRouter URL(# 포함)에 ?login_status=success를 # 앞에 삽입
+  function withLoginSuccess(url: string): string {
+    const hashIdx = url.indexOf('#');
+    const base = hashIdx >= 0 ? url.slice(0, hashIdx) : url;
+    const hash = hashIdx >= 0 ? url.slice(hashIdx) : '';
+    const sep  = base.includes('?') ? '&' : '?';
+    return `${base}${sep}login_status=success${hash}`;
+  }
 
   function resolveRedirect(userRole: string) {
     if (nextUrl) {
-      // 외부 URL (에듀포커스 등) 은 window.location 으로 이동
+      // 외부 URL (에듀포커스 등) — login_status=success 파라미터 추가
       if (nextUrl.startsWith('http')) {
-        window.location.href = nextUrl;
+        window.location.href = withLoginSuccess(nextUrl);
         return;
       }
       router.push(nextUrl);
@@ -97,6 +107,8 @@ function LoginContent() {
         if (signUpData.session) {
           resolveRedirect(role);
         } else {
+          // 이메일 인증 확인 필요 — 안내 메시지 표시 후 로그인 모드로 전환
+          setVerifyMsg(true);
           setMode('login');
         }
       }
@@ -128,6 +140,20 @@ function LoginContent() {
         <p className="text-sm text-gray-400 mb-6">
           {mode === 'login' ? '계속하려면 로그인하세요.' : '새 계정을 만드세요.'}
         </p>
+
+        {/* ── 이메일 인증 안내 배너 ── */}
+        {verifyMsg && (
+          <div className="mb-5 flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-200 px-4 py-3">
+            <span className="mt-0.5 text-blue-500 text-lg">✉️</span>
+            <div>
+              <p className="text-sm font-semibold text-blue-800">인증 메일을 발송했습니다!</p>
+              <p className="text-xs text-blue-600 mt-0.5">
+                입력하신 이메일로 인증 링크가 발송되었습니다.<br />
+                메일함을 확인하고 링크를 클릭한 뒤 로그인해주세요.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ── 소셜 로그인 ── */}
         <div className="flex flex-col gap-2.5 mb-6">
