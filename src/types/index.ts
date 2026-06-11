@@ -51,6 +51,7 @@ export interface UniversalQuestion {
   answer: string;
   difficulty: Difficulty;
   explanation?: string | null;   // 학생용 한글 해설
+  passage?: string | null;       // 좌측 고정 지문 (동일 세트 전 문항 공유)
   created_at: string;
   // joined
   learning_chapters?: LearningChapter;

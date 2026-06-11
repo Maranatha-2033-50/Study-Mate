@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from '@/lib/supabase/client';
@@ -148,7 +148,28 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
   }, []);
 
   const currentQ = questions[currentIdx];
-  const { passage, question } = currentQ ? splitContent(currentQ.question_text) : { passage: '', question: '' };
+
+  // 좌측 지문 고정(Pinned): passage 컬럼이 있는 첫 문항을 대표 지문으로 캐싱.
+  // 컬럼이 없는 레거시 데이터는 question_text 안에 임베드된 지문을 추출해 폴백.
+  const pinnedPassage = useMemo(() => {
+    const fromCol = questions.find((q) => q.passage && q.passage.trim());
+    if (fromCol?.passage) return fromCol.passage.replace(/\\n/g, '\n');
+    for (const q of questions) {
+      const extracted = splitContent(q.question_text).passage;
+      if (extracted) return extracted;
+    }
+    return '';
+  }, [questions]);
+
+  // passage 컬럼을 쓰는 세트면 question_text 는 문항 본문 그대로,
+  // 레거시(임베드)면 splitContent 로 지문을 떼어낸 질문만 표시.
+  const hasPassageColumn = useMemo(
+    () => questions.some((q) => q.passage && q.passage.trim()),
+    [questions],
+  );
+  const question = currentQ
+    ? (hasPassageColumn ? currentQ.question_text.replace(/\\n/g, '\n') : splitContent(currentQ.question_text).question)
+    : '';
   const optionKeys = currentQ?.options ? Object.keys(currentQ.options) : [];
 
   const selectAnswer = useCallback((key: string) => {
@@ -226,8 +247,8 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Passage</span>
         </div>
         <div className="flex-1 overflow-y-auto px-7 py-6">
-          {passage ? (
-            <MD>{passage}</MD>
+          {pinnedPassage ? (
+            <MD>{pinnedPassage}</MD>
           ) : (
             <p className="text-sm text-slate-400 italic">이 문항은 별도 지문 없이 단독 질문입니다.</p>
           )}
