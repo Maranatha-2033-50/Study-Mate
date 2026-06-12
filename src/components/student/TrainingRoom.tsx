@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useTimer } from '@/hooks/useTimer';
+import { difficultyStyle } from '@/lib/difficulty';
 import type { UniversalQuestion, StudySession, WeaknessStat } from '@/types';
 
 interface TrainingRoomProps {
@@ -163,11 +164,8 @@ export function TrainingRoom({ session, weakStats }: TrainingRoomProps) {
               ? `⏱ ${String(Math.floor((timeLeft ?? 0) / 60)).padStart(2, '0')}:${String((timeLeft ?? 0) % 60).padStart(2, '0')}`
               : `${score.total} / ${config.limit_value}`}
           </span>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium
-            ${currentQ.difficulty === '상' ? 'bg-red-100 text-red-700'
-              : currentQ.difficulty === '중' ? 'bg-yellow-100 text-yellow-700'
-              : 'bg-green-100 text-green-700'}`}>
-            {currentQ.difficulty}
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${difficultyStyle(currentQ.difficulty).badge}`}>
+            {difficultyStyle(currentQ.difficulty).label}
           </span>
         </div>
         <span className="text-sm font-medium text-green-600">

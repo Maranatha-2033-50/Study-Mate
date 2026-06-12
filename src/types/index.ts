@@ -32,7 +32,8 @@ export interface LearningChapter {
 }
 
 export type QuestionType = 'MULTIPLE_4' | 'MULTIPLE_5' | 'SHORT_ANSWER' | 'ESSAY';
-export type Difficulty = '상' | '중' | '하';
+// 레거시 상/중/하 + 한국 교과 시장 맞춤 액센트 라벨 (difficulty CHECK 제약은 008에서 해제)
+export type Difficulty = '상' | '중' | '하' | '1등급 도전' | '2~3등급 굳히기' | '개념 다지기';
 
 export interface QuestionOptions {
   A: string;
@@ -58,12 +59,13 @@ export interface UniversalQuestion {
 }
 
 export interface LanguageExamCard {
-  id:            string;   // OBJECTIVE: chapter_id / ESSAY: question_id
-  kind:          'OBJECTIVE' | 'ESSAY';
-  skill:         string;   // level_1 (Reading, Writing, ...)
-  title:         string;
-  questionCount: number;
-  href:          string;   // 시험방 라우트
+  id:             string;   // OBJECTIVE: chapter_id / ESSAY: question_id
+  kind:           'OBJECTIVE' | 'ESSAY';
+  skill:          string;   // level_1 (Reading, Writing, ...)
+  title:          string;
+  questionCount:  number;
+  href:           string;   // 시험방 라우트
+  curriculumCode?: string | null;  // 교과 글로벌 트랙 분류 (KR_HIGH_MATH 등)
 }
 
 export type SessionType = 'DIAGNOSTIC' | 'INFINITE_TRAINING' | 'SUBJECTIVE';

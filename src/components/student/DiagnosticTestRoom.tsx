@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useTimer } from '@/hooks/useTimer';
 import { useSessionStore } from '@/stores/sessionStore';
 import { CheckCircle2, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { difficultyStyle } from '@/lib/difficulty';
 import type { UniversalQuestion, StudySession } from '@/types';
 
 // ── 마크다운 렌더러 ────────────────────────────────────────
@@ -244,10 +245,7 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
 
   if (!currentQ) return null;
 
-  const diffColor =
-    currentQ.difficulty === '상' ? 'bg-rose-100 text-rose-600' :
-    currentQ.difficulty === '중' ? 'bg-amber-100 text-amber-600' :
-                                    'bg-emerald-100 text-emerald-600';
+  const diff = difficultyStyle(currentQ.difficulty);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-slate-50">
@@ -321,8 +319,8 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
           {/* 문항 메타 */}
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xs font-semibold text-slate-400">Q{currentIdx + 1}</span>
-            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${diffColor}`}>
-              {currentQ.difficulty}
+            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${diff.badge}`}>
+              {diff.label}
             </span>
             {isReviewMode ? (
               <span className={`ml-auto text-sm font-bold px-3 py-0.5 rounded-full

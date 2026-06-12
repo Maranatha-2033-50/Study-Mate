@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from '@/lib/supabase/client';
+import { difficultyStyle } from '@/lib/difficulty';
 import {
   RotateCcw, CheckCircle2, Calendar, AlertTriangle,
   NotebookPen, ChevronRight, Sparkles, Send,
@@ -168,10 +169,7 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
     }
   };
 
-  const diffColor = (d: string) =>
-    d === '상' ? 'bg-rose-100 text-rose-600'
-    : d === '중' ? 'bg-amber-100 text-amber-600'
-    :              'bg-emerald-100 text-emerald-600';
+  const diffColor = (d: string) => difficultyStyle(d).badge;
 
   return (
     <div className="space-y-6">

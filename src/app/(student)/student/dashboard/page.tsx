@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { AchievementWidget } from '@/components/student/AchievementWidget';
 import { RelativePerformance } from '@/components/student/RelativePerformance';
-import { buildExams, type ExamQuestionRow } from '@/lib/exams';
+import { buildExams, CURRICULUM_META, type ExamQuestionRow } from '@/lib/exams';
 import {
   ClipboardCheck,
   Target,
@@ -16,7 +16,7 @@ import {
   NotebookPen,
   ArrowRight,
 } from 'lucide-react';
-import type { WeaknessStat, LearningCategory } from '@/types';
+import type { WeaknessStat, LearningCategory, LanguageExamCard } from '@/types';
 
 /* ── 통계 미니 카드 ─────────────────────────────────────── */
 function StatCard({
@@ -96,6 +96,42 @@ function ActionCard({
   );
 }
 
+/* ── 모의고사 카드 ──────────────────────────────────────── */
+function ExamCard({ exam }: { exam: LanguageExamCard }) {
+  const isEssay = exam.kind === 'ESSAY';
+  return (
+    <div
+      className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3
+                 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
+          {exam.skill}
+        </span>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg
+          ${isEssay ? 'text-amber-600 bg-amber-50 border border-amber-200'
+                    : 'text-emerald-600 bg-emerald-50 border border-emerald-200'}`}>
+          {isEssay ? 'AI 첨삭' : '객관식'}
+        </span>
+      </div>
+      <p className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors leading-snug flex-1">
+        {exam.title}
+      </p>
+      <div className="flex items-center gap-3 text-xs text-slate-400">
+        <span>{isEssay ? '✍️ 에세이 1문항' : `📋 ${exam.questionCount}문항`}</span>
+      </div>
+      <Link
+        href={exam.href}
+        className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl
+                   text-xs font-semibold bg-slate-900 text-white
+                   hover:bg-indigo-600 transition-colors duration-200"
+      >
+        {isEssay ? '시험 시작 (AI 첨삭) →' : '시험 시작 →'}
+      </Link>
+    </div>
+  );
+}
+
 /* ── 페이지 ─────────────────────────────────────────────── */
 export default async function StudentDashboardPage({
   searchParams,
@@ -128,10 +164,26 @@ export default async function StudentDashboardPage({
   /* 실전 모의고사 카탈로그 (단원별) — 전 카테고리 공용 */
   const { data: examRows } = await supabase
     .from('universal_questions')
-    .select('id, question_type, chapter_id, learning_chapters!inner(category_id, level_1, level_2)')
+    .select('id, question_type, chapter_id, learning_chapters!inner(category_id, level_1, level_2, curriculum_code)')
     .eq('learning_chapters.category_id', activeCategoryId);
 
   const exams = buildExams((examRows ?? []) as unknown as ExamQuestionRow[], activeCategoryId);
+
+  /* 커리큘럼 트랙(KR/UK 등)별 그룹핑 — 교과 글로벌 카탈로그 분류 렌더용.
+     코드가 하나도 없으면 단일 그룹('')으로 기존 평면 렌더 유지. */
+  const CURRICULUM_ORDER = ['KR_HIGH_MATH', 'UK_ALEVEL_MATH'];
+  const examGroups: [string, LanguageExamCard[]][] = exams.some((e) => e.curriculumCode)
+    ? Object.entries(
+        exams.reduce<Record<string, LanguageExamCard[]>>((acc, e) => {
+          const k = e.curriculumCode ?? 'OTHER';
+          (acc[k] ??= []).push(e);
+          return acc;
+        }, {}),
+      ).sort(([a], [b]) => {
+        const ia = CURRICULUM_ORDER.indexOf(a), ib = CURRICULUM_ORDER.indexOf(b);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      })
+    : [['', exams]];
 
   /* 전체 유저 평균 정답률 (상대 위치 지표용) — category_skill_averages 뷰 */
   const { data: avgRows } = await supabase
@@ -295,51 +347,27 @@ export default async function StudentDashboardPage({
         />
       </div>
 
-      {/* ── 실전 모의고사 카탈로그 (단원별) ── */}
+      {/* ── 실전 모의고사 카탈로그 (커리큘럼 트랙별 분류) ── */}
       {exams.length > 0 && (
-        <div>
-          <div className="flex items-center gap-2 mb-5">
+        <div className="space-y-6">
+          <div className="flex items-center gap-2">
             <FileText className="text-indigo-500" size={18} />
             <h2 className="text-lg font-bold text-slate-900">실전 모의고사</h2>
             <span className="ml-auto text-xs text-slate-400">{exams.length}개 세트</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {exams.map((exam) => {
-              const isEssay = exam.kind === 'ESSAY';
-              return (
-                <div
-                  key={exam.id}
-                  className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex flex-col gap-3
-                             hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600">
-                      {exam.skill}
-                    </span>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg
-                      ${isEssay ? 'text-amber-600 bg-amber-50 border border-amber-200'
-                                : 'text-emerald-600 bg-emerald-50 border border-emerald-200'}`}>
-                      {isEssay ? 'AI 첨삭' : '객관식'}
-                    </span>
-                  </div>
-                  <p className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors leading-snug flex-1">
-                    {exam.title}
-                  </p>
-                  <div className="flex items-center gap-3 text-xs text-slate-400">
-                    <span>{isEssay ? '✍️ 에세이 1문항' : `📋 ${exam.questionCount}문항`}</span>
-                  </div>
-                  <Link
-                    href={exam.href}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl
-                               text-xs font-semibold bg-slate-900 text-white
-                               hover:bg-indigo-600 transition-colors duration-200"
-                  >
-                    {isEssay ? '시험 시작 (AI 첨삭) →' : '시험 시작 →'}
-                  </Link>
+          {examGroups.map(([code, cards]) => (
+            <div key={code || 'flat'}>
+              {code && CURRICULUM_META[code] && (
+                <div className={`inline-flex items-center gap-1.5 mb-3 px-3 py-1 rounded-full text-xs font-bold border ${CURRICULUM_META[code].badge}`}>
+                  {CURRICULUM_META[code].label}
+                  <span className="opacity-70">· {cards.length}세트</span>
                 </div>
-              );
-            })}
-          </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {cards.map((exam) => <ExamCard key={exam.id} exam={exam} />)}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

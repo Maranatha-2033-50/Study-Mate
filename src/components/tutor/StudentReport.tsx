@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Sparkles, Lock } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { difficultyStyle } from '@/lib/difficulty';
 import { RadarChart } from '@/components/ui/RadarChart';
 import type {
   Profile, WeaknessStat, StudySession, UserAttempt, UniversalQuestion, SubjectiveFeedback,
@@ -241,11 +242,8 @@ export function StudentReport({ student }: StudentReportProps) {
                       {question?.question_text?.slice(0, 50)}…
                     </td>
                     <td className="px-3 py-2">
-                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium
-                        ${question?.difficulty === '상' ? 'bg-red-100 text-red-700'
-                          : question?.difficulty === '중' ? 'bg-yellow-100 text-yellow-700'
-                          : 'bg-green-100 text-green-700'}`}>
-                        {question?.difficulty}
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${difficultyStyle(question?.difficulty).badge}`}>
+                        {difficultyStyle(question?.difficulty).label}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-red-500 font-medium">{attempt.user_answer}</td>
