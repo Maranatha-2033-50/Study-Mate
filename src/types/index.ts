@@ -139,6 +139,37 @@ export interface AIStudyPlan {
   tips: string[];
 }
 
+// ─── Interactive Precision Planner (Study Budget 기반) ─────────────────────────
+
+export type WeekdayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+export type AvailabilityMatrix = Record<WeekdayKey, number>;  // 요일별 가용 시간
+
+export interface PlanMilestone {
+  id:        string;   // 'm1', 'm2' … 체크 추적 키
+  title:     string;   // 마일스톤 제목
+  detail:    string;   // 구체적 학습 과제 (마크다운)
+  day_range: string;   // 예: 'D-30 ~ D-21'
+  hours:     number;   // 배정 학습 시간
+}
+
+export interface InteractivePlan {
+  summary:       string;          // 전략 요약
+  encouragement: string;          // 격려 메시지
+  milestones:    PlanMilestone[]; // 마일스톤 로드맵
+}
+
+export interface AIStudyPlanRow {
+  id:                  string;
+  user_id:             string;
+  category_id:         string;
+  exam_date:           string | null;            // YYYY-MM-DD
+  availability_matrix: AvailabilityMatrix;
+  plan_content:        string | null;            // JSON.stringify(InteractivePlan)
+  completed_items:     Record<string, boolean>;  // { 'm1': true }
+  created_at:          string;
+  updated_at:          string;
+}
+
 // ─── UI / Component State ─────────────────────────────────────────────────────
 
 export interface SessionDraft {
