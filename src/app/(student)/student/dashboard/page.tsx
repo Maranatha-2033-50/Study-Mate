@@ -3,7 +3,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { AchievementWidget } from '@/components/student/AchievementWidget';
 import { RelativePerformance } from '@/components/student/RelativePerformance';
+import { PacemakerBanner } from '@/components/student/PacemakerBanner';
 import { buildExams, CURRICULUM_META, type ExamQuestionRow } from '@/lib/exams';
+import { computeStudyBudget } from '@/lib/planner-budget';
 import {
   ClipboardCheck,
   Target,
@@ -16,7 +18,9 @@ import {
   NotebookPen,
   ArrowRight,
 } from 'lucide-react';
-import type { WeaknessStat, LearningCategory, LanguageExamCard } from '@/types';
+import type {
+  WeaknessStat, LearningCategory, LanguageExamCard, AIStudyPlanRow, InteractivePlan,
+} from '@/types';
 
 /* ── 통계 미니 카드 ─────────────────────────────────────── */
 function StatCard({
@@ -153,6 +157,34 @@ export default async function StudentDashboardPage({
   const activeCategoryId = params.category ?? allCategories[0]?.id ?? '';
   const activeCategory   = allCategories.find((c) => c.id === activeCategoryId);
 
+  /* AI 페이스메이커 배너 — 프로필 이름 + 최신 학습 플랜 진행도 */
+  const [{ data: profile }, { data: latestPlanRaw }] = await Promise.all([
+    supabase.from('profiles').select('name').eq('id', user.id).single(),
+    supabase
+      .from('ai_study_plans')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const latestPlan = latestPlanRaw as AIStudyPlanRow | null;
+  let pacemaker = { hasPlan: false, dDay: 0, pct: 0, done: 0, total: 0 };
+  if (latestPlan?.plan_content && latestPlan.exam_date) {
+    try {
+      const parsed    = JSON.parse(latestPlan.plan_content) as InteractivePlan;
+      const milestones = parsed.milestones ?? [];
+      const completed  = latestPlan.completed_items ?? {};
+      const total = milestones.length;
+      const done  = milestones.filter((m) => completed[m.id]).length;
+      if (total > 0) {
+        const { dDay } = computeStudyBudget(latestPlan.exam_date, latestPlan.availability_matrix ?? {});
+        pacemaker = { hasPlan: true, dDay, pct: Math.round((done / total) * 100), done, total };
+      }
+    } catch { /* plan_content 파싱 실패 → 가드 표시 */ }
+  }
+
   const { data: statsRaw } = await supabase
     .from('weakness_stats')
     .select('*')
@@ -232,6 +264,9 @@ export default async function StudentDashboardPage({
 
   return (
     <div className="space-y-8">
+
+      {/* ── AI 페이스메이커 진행도 배너 ── */}
+      <PacemakerBanner name={profile?.name ?? ''} {...pacemaker} />
 
       {/* ── 페이지 헤더 ── */}
       <div className="flex items-end justify-between">
