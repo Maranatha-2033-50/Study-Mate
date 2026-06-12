@@ -4,17 +4,18 @@
   "private": true,
   "homepage": "https://maranatha-2033-50.github.io/Study-Mate",
   "scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start",
-  "lint": "next lint"
-},
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
   "dependencies": {
     "@supabase/ssr": "^0.5.1",
     "@supabase/supabase-js": "^2.45.4",
     "chart.js": "^4.4.4",
     "lucide-react": "^1.17.0",
     "next": "^16.2.7",
+    "pg": "^8.21.0",
     "react": "^19.0.0",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^19.0.0",

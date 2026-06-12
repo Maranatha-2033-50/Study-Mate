@@ -491,25 +491,29 @@ BEGIN
      '**1. Which of the following best expresses the main idea of the passage?**',
      '{"A":"Local solar time was more accurate than the standardised time that replaced it.","B":"The need for reliable railway schedules drove the adoption of standardised time, which became a foundation of the modern connected world.","C":"The 1884 Washington conference failed to reach any meaningful agreement.","D":"Most countries refused to abandon their local time."}',
      'B', '중',
-     '글 전체는 지역 태양시 → 철도가 강제한 표준시 → 1884년 국제 표준 시간대 합의 → 현대 세계의 보이지 않는 토대라는 흐름을 다룹니다([B]~[F]). 따라서 핵심은 B. A·C·D는 본문 내용과 반대되거나(표준시가 정착함) 과장된 진술입니다.'),
+     '글 전체는 지역 태양시 → 철도가 강제한 표준시 → 1884년 국제 표준 시간대 합의 → 현대 세계의 보이지 않는 토대라는 흐름을 다룹니다([B]~[F]). 따라서 핵심은 B. A·C·D는 본문 내용과 반대되거나(표준시가 정착함) 과장된 진술입니다.',
+     passage),
 
     (ch_read2, 'MULTIPLE_4',
      '**2. According to paragraph B, why did railways require a single uniform time?**',
      '{"A":"Because passengers preferred a distant standard to their own local time","B":"Because timetables and single-track safety depended on consistent scheduling across the network","C":"Because the Greenwich observatory ordered them to","D":"Because telegraph wires could not carry local time"}',
      'B', '하',
-     '단락 [B]는 서로 다른 지역 시간으로는 시간표가 무의미하고, 단선 철도에서 충돌을 피하려면 정밀한 일정이 필요하므로 철도망 전체에 단일 표준시가 요구되었다고 설명합니다. 정답 B. 나머지는 본문에 근거가 없습니다.'),
+     '단락 [B]는 서로 다른 지역 시간으로는 시간표가 무의미하고, 단선 철도에서 충돌을 피하려면 정밀한 일정이 필요하므로 철도망 전체에 단일 표준시가 요구되었다고 설명합니다. 정답 B. 나머지는 본문에 근거가 없습니다.',
+     passage),
 
     (ch_read2, 'MULTIPLE_5',
      '**3. According to the passage, the choice of Greenwich as the prime meridian in 1884 was due to which of the following?**\n\nⅠ. Much of the world''s shipping already used charts based on it.\nⅡ. It reflected British maritime dominance at the time.\nⅢ. Every nation accepted the decision without objection.',
      '{"A":"Ⅰ only","B":"Ⅲ only","C":"Ⅰ and Ⅱ only","D":"Ⅱ and Ⅲ only","E":"Ⅰ, Ⅱ and Ⅲ"}',
      'C', '상',
-     '단락 [D]는 그리니치 선택이 ㉠ 이미 다수 선박이 그리니치 기준 해도를 사용했고(편의), ㉡ 영국 해양 패권의 반영이기도 했다고 말합니다. 다만 ''not every nation accepted it gracefully''라 했으므로 Ⅲ(모든 나라가 이의 없이 수용)은 틀립니다. 따라서 Ⅰ·Ⅱ만 옳아 정답 C.'),
+     '단락 [D]는 그리니치 선택이 ㉠ 이미 다수 선박이 그리니치 기준 해도를 사용했고(편의), ㉡ 영국 해양 패권의 반영이기도 했다고 말합니다. 다만 ''not every nation accepted it gracefully''라 했으므로 Ⅲ(모든 나라가 이의 없이 수용)은 틀립니다. 따라서 Ⅰ·Ⅱ만 옳아 정답 C.',
+     passage),
 
     (ch_read2, 'SHORT_ANSWER',
      '**4. Complete the sentence with ONE WORD from the passage.**\n\nIn principle, time zones should be neat bands fifteen degrees wide, but in practice their boundaries bend to follow national and regional ______.',
      NULL,
      'borders', '중',
-     '단락 [E]에 ''their boundaries bend and zigzag to follow national and regional borders''라고 명시됩니다. 시간대 경계가 국가·지역 경계(borders)를 따라 휜다는 내용으로, 한 단어 정답은 borders 입니다. (boundaries 도 의미상 가깝지만 본문 표현은 borders)');
+     '단락 [E]에 ''their boundaries bend and zigzag to follow national and regional borders''라고 명시됩니다. 시간대 경계가 국가·지역 경계(borders)를 따라 휜다는 내용으로, 한 단어 정답은 borders 입니다. (boundaries 도 의미상 가깝지만 본문 표현은 borders)',
+     passage);
 
   RAISE NOTICE 'IELTS Academic Reading Passage 2 시드 완료: 지문 1 + 문항 4 (passage 전 Row 복사).';
 END;
