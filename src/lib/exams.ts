@@ -9,8 +9,9 @@ export interface ExamQuestionRow {
 
 // 교과 글로벌 커리큘럼 트랙 메타 — 대시보드 카탈로그 그룹 헤더/뱃지용
 export const CURRICULUM_META: Record<string, { label: string; badge: string }> = {
-  KR_HIGH_MATH:   { label: '🇰🇷 대한민국 고등 수학 (내신·수능)', badge: 'bg-rose-50 text-rose-600 border-rose-200' },
-  UK_ALEVEL_MATH: { label: '🇬🇧 영국 A-Level Mathematics',       badge: 'bg-blue-50 text-blue-600 border-blue-200' },
+  KR_HIGH_MATH:   { label: '🇰🇷 대한민국 고등 수학 (내신·수능)',   badge: 'bg-rose-50 text-rose-600 border-rose-200' },
+  UK_ALEVEL_MATH: { label: '🇬🇧 영국 A-Level Mathematics',         badge: 'bg-blue-50 text-blue-600 border-blue-200' },
+  CA_ON_MATH:     { label: '🇨🇦 캐나다 온타리오 수학 (G11–12)',     badge: 'bg-emerald-50 text-emerald-600 border-emerald-200' },
 };
 
 // 시드된 문항을 실전 모의고사 카드 목록으로 변환 (전 카테고리 공용)

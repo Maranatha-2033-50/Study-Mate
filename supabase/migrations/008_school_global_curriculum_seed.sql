@@ -25,13 +25,16 @@ BEGIN
     INSERT INTO learning_categories (id, type, title) VALUES (cat_math, 'SCHOOL', '교과 과외 (수학)');
   END IF;
 
-  -- 멱등 정리: 이 카테고리 전체 (attempts → questions → chapters)
+  -- 멱등 정리: KR/UK 트랙만 (동일 카테고리를 공유하는 CA_ON_MATH(009) 등 타 트랙 보존)
   DELETE FROM user_attempts WHERE question_id IN (
     SELECT q.id FROM universal_questions q
-    JOIN learning_chapters c ON c.id = q.chapter_id WHERE c.category_id = cat_math);
+    JOIN learning_chapters c ON c.id = q.chapter_id
+    WHERE c.category_id = cat_math AND c.curriculum_code IN ('KR_HIGH_MATH', 'UK_ALEVEL_MATH'));
   DELETE FROM universal_questions WHERE chapter_id IN (
-    SELECT id FROM learning_chapters WHERE category_id = cat_math);
-  DELETE FROM learning_chapters WHERE category_id = cat_math;
+    SELECT id FROM learning_chapters
+    WHERE category_id = cat_math AND curriculum_code IN ('KR_HIGH_MATH', 'UK_ALEVEL_MATH'));
+  DELETE FROM learning_chapters
+    WHERE category_id = cat_math AND curriculum_code IN ('KR_HIGH_MATH', 'UK_ALEVEL_MATH');
 
   -- ── KR 단원 트리 (curriculum_code = 'KR_HIGH_MATH') ──
   ch_poly := uuid_generate_v4(); ch_eq := uuid_generate_v4();

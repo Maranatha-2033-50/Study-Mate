@@ -171,7 +171,7 @@ export default async function StudentDashboardPage({
 
   /* 커리큘럼 트랙(KR/UK 등)별 그룹핑 — 교과 글로벌 카탈로그 분류 렌더용.
      코드가 하나도 없으면 단일 그룹('')으로 기존 평면 렌더 유지. */
-  const CURRICULUM_ORDER = ['KR_HIGH_MATH', 'UK_ALEVEL_MATH'];
+  const CURRICULUM_ORDER = ['KR_HIGH_MATH', 'UK_ALEVEL_MATH', 'CA_ON_MATH'];
   const examGroups: [string, LanguageExamCard[]][] = exams.some((e) => e.curriculumCode)
     ? Object.entries(
         exams.reduce<Record<string, LanguageExamCard[]>>((acc, e) => {
