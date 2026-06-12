@@ -120,28 +120,7 @@ export interface CategoryAccuracy {
   total_attempts: number;
 }
 
-// ─── AI Planner ───────────────────────────────────────────────────────────────
-
-export interface PlannerInput {
-  category_title: string;
-  weak_chapters: { level_1: string; level_2: string; accuracy_rate: number }[];
-  exam_date: string;            // ISO date string
-  available_hours: number;      // hours per day
-}
-
-export interface DailyPlan {
-  date: string;
-  sessions: { time_slot: string; chapter: string; task: string; duration_min: number }[];
-}
-
-export interface AIStudyPlan {
-  summary: string;
-  weekly_goal: string;
-  daily_plans: DailyPlan[];
-  tips: string[];
-}
-
-// ─── Interactive Precision Planner (Study Budget 기반) ─────────────────────────
+// ─── AI Planner (Interactive Precision Planner — Study Budget 기반) ─────────────
 
 export type WeekdayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 export type AvailabilityMatrix = Record<WeekdayKey, number>;  // 요일별 가용 시간
