@@ -7,3 +7,10 @@
 }
 
 .prose pre { background: transparent; padding: 0; }
+
+/* 오답노트 정복 토스트 등장 애니메이션 */
+.toast-in { animation: toastIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 16px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}

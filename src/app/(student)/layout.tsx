@@ -1,13 +1,14 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { BookOpen, LayoutDashboard, FlaskConical, Brain, LogOut } from 'lucide-react';
+import { BookOpen, LayoutDashboard, FlaskConical, Brain, LogOut, NotebookPen } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/student/dashboard',   label: '대시보드',   icon: LayoutDashboard },
-  { href: '/student/diagnostic',  label: '진단 평가',  icon: BookOpen },
-  { href: '/student/training',    label: '훈련방',     icon: FlaskConical },
-  { href: '/student/planner',     label: 'AI 플래너',  icon: Brain },
+  { href: '/student/dashboard',   label: '대시보드',     icon: LayoutDashboard },
+  { href: '/student/diagnostic',  label: '진단 평가',    icon: BookOpen },
+  { href: '/student/incorrect',   label: '나의 오답노트', icon: NotebookPen },
+  { href: '/student/training',    label: '훈련방',       icon: FlaskConical },
+  { href: '/student/planner',     label: 'AI 플래너',    icon: Brain },
 ];
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {

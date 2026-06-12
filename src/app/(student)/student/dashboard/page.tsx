@@ -13,6 +13,8 @@ import {
   Award,
   BookOpen,
   FileText,
+  NotebookPen,
+  ArrowRight,
 } from 'lucide-react';
 import type { WeaknessStat, LearningCategory } from '@/types';
 
@@ -192,6 +194,18 @@ export default async function StudentDashboardPage({
             오늘도 한 걸음 더 — 꾸준함이 실력이 됩니다.
           </p>
         </div>
+
+        {/* 오답노트 보관함 바로가기 */}
+        <Link
+          href="/student/incorrect"
+          className="group inline-flex items-center gap-2 px-4 py-2.5 rounded-xl
+                     bg-white border border-indigo-200 text-indigo-600 text-sm font-semibold shadow-sm
+                     hover:bg-indigo-50 hover:border-indigo-300 hover:shadow-md transition-all duration-200"
+        >
+          <NotebookPen size={16} />
+          나의 오답노트 보관함
+          <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+        </Link>
       </div>
 
       {/* ── 카테고리 탭 ── */}
