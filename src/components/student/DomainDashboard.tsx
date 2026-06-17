@@ -3,11 +3,16 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { buildExams, CURRICULUM_META, type ExamQuestionRow } from '@/lib/exams';
 import { StudentShell } from '@/components/layout/StudentChrome';
+import { PacemakerBanner } from '@/components/student/PacemakerBanner';
+import { computeStudyBudget } from '@/lib/planner-budget';
 import { DOMAIN_META } from '@/lib/domain';
 import {
   ClipboardCheck, Target, ChevronRight, FileText, BookOpen, Award, Zap,
 } from 'lucide-react';
-import type { CategoryType, LearningCategory, WeaknessStat, LanguageExamCard } from '@/types';
+import type {
+  CategoryType, LearningCategory, WeaknessStat, LanguageExamCard,
+  AIStudyPlanRow, InteractivePlan,
+} from '@/types';
 
 /* ── 미니 통계 카드 ───────────────────────────────────────── */
 function StatCard({ icon: Icon, label, value, color }: {
@@ -111,8 +116,12 @@ export async function DomainDashboard({
     );
   }
 
-  /* ── [가드 2] 모든 학습 데이터를 활성 카테고리로 스코프 ── */
-  const [{ data: statsRaw }, { data: sessionsRaw }, { data: examRows }] = await Promise.all([
+  /* ── [가드 2] 모든 학습 데이터를 활성 카테고리로 스코프 ──
+     AI 페이스메이커 배너의 학습 플랜도 활성 카테고리에 한정해 도메인 격리를 유지한다. */
+  const [
+    { data: statsRaw }, { data: sessionsRaw }, { data: examRows },
+    { data: profile }, { data: latestPlanRaw },
+  ] = await Promise.all([
     supabase
       .from('weakness_stats')
       .select('*')
@@ -128,7 +137,37 @@ export async function DomainDashboard({
       .from('universal_questions')
       .select('id, question_type, chapter_id, learning_chapters!inner(category_id, level_1, level_2, curriculum_code)')
       .eq('learning_chapters.category_id', activeCategoryId),
+    supabase
+      .from('profiles')
+      .select('name')
+      .eq('id', user.id)
+      .maybeSingle(),
+    supabase
+      .from('ai_study_plans')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('category_id', activeCategoryId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+
+  /* AI 페이스메이커 진행도 (활성 카테고리 최신 플랜) */
+  const latestPlan = latestPlanRaw as AIStudyPlanRow | null;
+  let pacemaker = { hasPlan: false, dDay: 0, pct: 0, done: 0, total: 0 };
+  if (latestPlan?.plan_content && latestPlan.exam_date) {
+    try {
+      const parsed     = JSON.parse(latestPlan.plan_content) as InteractivePlan;
+      const milestones = parsed.milestones ?? [];
+      const completed  = latestPlan.completed_items ?? {};
+      const total = milestones.length;
+      const done  = milestones.filter((m) => completed[m.id]).length;
+      if (total > 0) {
+        const { dDay } = computeStudyBudget(latestPlan.exam_date, latestPlan.availability_matrix ?? {});
+        pacemaker = { hasPlan: true, dDay, pct: Math.round((done / total) * 100), done, total };
+      }
+    } catch { /* plan_content 파싱 실패 → 가드 표시 */ }
+  }
 
   const stats: WeaknessStat[] = statsRaw ?? [];
   const exams = buildExams((examRows ?? []) as unknown as ExamQuestionRow[], activeCategoryId);
@@ -158,6 +197,9 @@ export async function DomainDashboard({
   return (
     <StudentShell>
       <div className="space-y-8">
+        {/* ── AI 페이스메이커 진행도 배너 (활성 카테고리 기준) ── */}
+        <PacemakerBanner name={profile?.name ?? ''} {...pacemaker} />
+
         {/* ── 헤더 ── */}
         <div>
           <p className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full mb-2 ${meta.badge}`}>
