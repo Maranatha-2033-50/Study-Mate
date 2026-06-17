@@ -49,9 +49,6 @@ export default function PortalPage() {
 
           {/* 콘텐츠 */}
           <div className="relative z-10 px-8 text-center text-white">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-white/60">
-              Study-Mate
-            </p>
             <h2 className="text-2xl font-extrabold leading-tight drop-shadow-md sm:text-3xl lg:text-4xl">
               {d.gate}
             </h2>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { TrainingRoom } from '@/components/student/TrainingRoom';
+import { StudentShell } from '@/components/layout/StudentChrome';
 import type { StudySession, WeaknessStat } from '@/types';
 
 type LimitType = 'COUNT' | 'TIME';
@@ -64,6 +65,7 @@ export default function TrainingPage() {
     ];
 
     return (
+      <StudentShell>
       <div className="max-w-md mx-auto px-6 py-16 space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">취약 단원 무한 훈련방</h1>
@@ -97,6 +99,7 @@ export default function TrainingPage() {
           {loading ? '준비 중…' : '훈련 시작'}
         </button>
       </div>
+      </StudentShell>
     );
   }
 

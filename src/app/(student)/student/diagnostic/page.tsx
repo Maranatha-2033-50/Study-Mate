@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { DiagnosticTestRoom } from '@/components/student/DiagnosticTestRoom';
+import { StudentShell } from '@/components/layout/StudentChrome';
 import type { StudySession, UniversalQuestion } from '@/types';
 
 type Phase = 'CONFIG' | 'TESTING' | 'DONE';
@@ -63,6 +64,7 @@ export default function DiagnosticPage() {
 
   if (phase === 'CONFIG') {
     return (
+      <StudentShell>
       <div className="max-w-md mx-auto px-6 py-16 space-y-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
@@ -99,6 +101,7 @@ export default function DiagnosticPage() {
           {loading ? '준비 중…' : chapterId ? '시험 시작' : '진단 시작'}
         </button>
       </div>
+      </StudentShell>
     );
   }
 

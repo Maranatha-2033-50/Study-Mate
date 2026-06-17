@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { IncorrectNotebook, type IncorrectItem } from '@/components/student/IncorrectNotebook';
+import { StudentShell } from '@/components/layout/StudentChrome';
 import type { CategoryType, QuestionType, QuestionOptions } from '@/types';
 
 export const metadata = { title: '나의 오답노트 | Study Mate' };
@@ -98,5 +99,9 @@ export default async function IncorrectPage() {
   // 최신 오답 순 정렬
   items.sort((a, b) => (a.lastWrongAt < b.lastWrongAt ? 1 : -1));
 
-  return <IncorrectNotebook items={items} />;
+  return (
+    <StudentShell>
+      <IncorrectNotebook items={items} />
+    </StudentShell>
+  );
 }

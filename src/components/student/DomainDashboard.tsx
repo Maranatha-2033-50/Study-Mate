@@ -2,57 +2,12 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { buildExams, CURRICULUM_META, type ExamQuestionRow } from '@/lib/exams';
-import { DashboardLayout, type DomainNavItem } from '@/components/layout/DashboardLayout';
+import { StudentShell } from '@/components/layout/StudentChrome';
+import { DOMAIN_META } from '@/lib/domain';
 import {
   ClipboardCheck, Target, ChevronRight, FileText, BookOpen, Award, Zap,
-  Lightbulb, Clock, Sparkles, HelpCircle,
 } from 'lucide-react';
 import type { CategoryType, LearningCategory, WeaknessStat, LanguageExamCard } from '@/types';
-
-/* ── 도메인별 메타 (라벨/색상/가이드 콘텐츠) ───────────────────── */
-const DOMAIN_META: Record<CategoryType, {
-  label: string;
-  badge: string;
-  accentFrom: string;
-  accentTo: string;
-  tips: { icon: 'HelpCircle' | 'Clock' | 'Sparkles'; title: string; body: string }[];
-}> = {
-  CERT: {
-    label: '자격증',
-    badge: 'bg-violet-100 text-violet-600',
-    accentFrom: 'from-violet-500',
-    accentTo: 'to-indigo-500',
-    tips: [
-      { icon: 'HelpCircle', title: '이 페이지 사용법', body: '실전 모의고사로 출제 범위를 점검하고, 취약 단원 훈련방에서 약점을 집중 보강하세요. 틀린 문제는 오답 보관함에 자동 적립됩니다.' },
-      { icon: 'Clock',      title: '망각곡선 복습 주기', body: '자격증 개념은 1일·3일·7일 간격으로 재복습할 때 장기 기억으로 굳어집니다. 오답 보관함을 주기에 맞춰 다시 풀어 보세요.' },
-      { icon: 'Sparkles',   title: 'AI 활용 팁', body: 'AI 플래너에 시험일과 가용 시간을 입력하면, 취약 단원 가중치를 반영한 합격 로드맵을 자동 설계합니다.' },
-    ],
-  },
-  LANG: {
-    label: '어학',
-    badge: 'bg-sky-100 text-sky-600',
-    accentFrom: 'from-sky-500',
-    accentTo: 'to-cyan-500',
-    tips: [
-      { icon: 'HelpCircle', title: '이 페이지 사용법', body: '영역(Reading·Listening·Writing)별 모의고사로 실전 감각을 키우고, AI 첨삭이 붙는 에세이 과제로 표현력을 다듬으세요.' },
-      { icon: 'Clock',      title: '망각곡선 복습 주기', body: '어휘·표현은 짧고 자주가 핵심입니다. 매일 10분씩 오답 보관함의 표현을 소리 내어 복습하면 인출 강도가 올라갑니다.' },
-      { icon: 'Sparkles',   title: 'AI 활용 팁', body: 'Writing 과제는 AI 첨삭 리포트의 문장별 교정 이유까지 읽어야 같은 실수를 반복하지 않습니다.' },
-    ],
-  },
-  SCHOOL: {
-    label: '교과',
-    badge: 'bg-amber-100 text-amber-600',
-    accentFrom: 'from-amber-500',
-    accentTo: 'to-orange-500',
-    tips: [
-      { icon: 'HelpCircle', title: '이 페이지 사용법', body: '커리큘럼 트랙(국내 내신·수능, A-Level 등)별 모의고사를 골라 풀고, 취약 단원 훈련방에서 등급 상승을 노려 보세요.' },
-      { icon: 'Clock',      title: '망각곡선 복습 주기', body: '내신·수능 개념은 단원이 끝난 직후, 그리고 시험 2주 전 집중 회독 시 정착률이 가장 높습니다.' },
-      { icon: 'Sparkles',   title: 'AI 활용 팁', body: 'AI 플래너가 단원별 약점과 D-Day를 결합해 회독 일정을 배분합니다. 시험 범위가 확정되면 바로 재설정하세요.' },
-    ],
-  },
-};
-
-const GUIDE_ICONS = { HelpCircle, Clock, Sparkles } as const;
 
 /* ── 미니 통계 카드 ───────────────────────────────────────── */
 function StatCard({ icon: Icon, label, value, color }: {
@@ -117,31 +72,6 @@ function ExamCard({ exam }: { exam: LanguageExamCard }) {
   );
 }
 
-/* ── 우측 가이드 패널 ─────────────────────────────────────── */
-function GuidePanel({ siteType }: { siteType: CategoryType }) {
-  const meta = DOMAIN_META[siteType];
-  return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-5">
-      <div className="flex items-center gap-2">
-        <Lightbulb className="text-indigo-500" size={16} />
-        <h2 className="text-sm font-bold text-slate-800">{meta.label} 학습 가이드</h2>
-      </div>
-      {meta.tips.map((tip) => {
-        const Icon = GUIDE_ICONS[tip.icon];
-        return (
-          <div key={tip.title} className="space-y-1.5">
-            <p className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
-              <Icon size={13} className="text-indigo-400" />
-              {tip.title}
-            </p>
-            <p className="text-xs text-slate-500 leading-6">{tip.body}</p>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 /* ── 도메인 대시보드 (자격/어학/교과 공용) ─────────────────────
    site_type 가드: learning_categories.type === siteType 으로 카테고리를 한정하고,
    모든 학습 이력/오답/통계 쿼리를 그 카테고리(category_id)에만 스코프하여
@@ -170,22 +100,14 @@ export async function DomainDashboard({
   const activeCategoryId = categoryParam ?? categories[0]?.id ?? '';
   const activeCategory   = categories.find((c) => c.id === activeCategoryId);
 
-  /* 좌측 서브 내비게이션 (도메인 한정) */
-  const basePath = `/student/${siteType.toLowerCase()}`;
-  const nav: DomainNavItem[] = [
-    { href: `${basePath}#exams`,                                  label: '실전 모의고사',    icon: 'FileText',   active: true },
-    { href: `/student/training?category=${activeCategoryId}`,     label: '취약 단원 훈련방',  icon: 'Target' },
-    { href: '/student/incorrect',                                 label: '오답 보관함',      icon: 'NotebookPen' },
-  ];
-
   /* 카테고리가 없으면 빈 상태만 렌더 (가드 유지) */
   if (!activeCategory) {
     return (
-      <DashboardLayout domainLabel={meta.label} domainBadge={meta.badge} nav={nav} guide={<GuidePanel siteType={siteType} />}>
+      <StudentShell>
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center text-slate-400">
           아직 {meta.label} 학습 카테고리가 없습니다. 곧 콘텐츠가 추가될 예정입니다.
         </div>
-      </DashboardLayout>
+      </StudentShell>
     );
   }
 
@@ -234,7 +156,7 @@ export async function DomainDashboard({
   const weakCount     = stats.filter((s) => s.accuracy_rate < 60).length;
 
   return (
-    <DashboardLayout domainLabel={meta.label} domainBadge={meta.badge} nav={nav} guide={<GuidePanel siteType={siteType} />}>
+    <StudentShell>
       <div className="space-y-8">
         {/* ── 헤더 ── */}
         <div>
@@ -244,27 +166,6 @@ export async function DomainDashboard({
           <h1 className="text-3xl font-extrabold text-slate-900 leading-tight">{activeCategory.title}</h1>
           <p className="text-sm text-slate-400 mt-1">오늘도 한 걸음 더 — 꾸준함이 실력이 됩니다.</p>
         </div>
-
-        {/* ── 카테고리 탭 (동일 도메인 내 전환) ── */}
-        {categories.length > 1 && (
-          <div className="flex gap-2 flex-wrap">
-            {categories.map((cat) => {
-              const active = cat.id === activeCategoryId;
-              return (
-                <Link
-                  key={cat.id}
-                  href={`${basePath}?category=${cat.id}`}
-                  className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all
-                    ${active
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                      : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'}`}
-                >
-                  {cat.title}
-                </Link>
-              );
-            })}
-          </div>
-        )}
 
         {/* ── 요약 통계 ── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -319,6 +220,6 @@ export async function DomainDashboard({
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </StudentShell>
   );
 }
