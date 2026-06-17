@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { PlannerStudio } from '@/components/student/PlannerStudio';
 import { StudentShell } from '@/components/layout/StudentChrome';
+import { DOMAIN_COOKIE, isDomainMode, type DomainMode } from '@/lib/domain';
 import { Brain } from 'lucide-react';
 import type { WeaknessStat, LearningCategory, AIStudyPlanRow } from '@/types';
 
@@ -18,9 +20,14 @@ export default async function PlannerPage({
 
   const params = await searchParams;
 
+  // [도메인 격리 가드] 활성 도메인(sm_domain)으로 카테고리를 한정 → 타 도메인 혼입 차단
+  const domainCookie = (await cookies()).get(DOMAIN_COOKIE)?.value;
+  const domain: DomainMode = isDomainMode(domainCookie) ? domainCookie : 'CERT';
+
   const { data: categories } = await supabase
     .from('learning_categories')
     .select('*')
+    .eq('type', domain)
     .order('title');
 
   const allCategories: LearningCategory[] = categories ?? [];

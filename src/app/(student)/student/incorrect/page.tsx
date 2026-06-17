@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabase/server';
 import { IncorrectNotebook, type IncorrectItem } from '@/components/student/IncorrectNotebook';
 import { StudentShell } from '@/components/layout/StudentChrome';
+import { DOMAIN_COOKIE, isDomainMode, type DomainMode } from '@/lib/domain';
 import type { CategoryType, QuestionType, QuestionOptions } from '@/types';
 
 export const metadata = { title: '나의 오답노트 | Study Mate' };
@@ -31,7 +33,11 @@ export default async function IncorrectPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // 카테고리 → 유형/제목 매핑 (탭 분류용)
+  // [도메인 격리 가드] 활성 도메인(sm_domain) — 타 도메인 오답 혼입 차단
+  const domainCookie = (await cookies()).get(DOMAIN_COOKIE)?.value;
+  const domain: DomainMode = isDomainMode(domainCookie) ? domainCookie : 'CERT';
+
+  // 카테고리 → 유형/제목 매핑
   const { data: categories } = await supabase
     .from('learning_categories')
     .select('id, type, title');
@@ -74,6 +80,7 @@ export default async function IncorrectPage() {
     const ch  = q.learning_chapters;
     const cat = ch ? catMap.get(ch.category_id) : undefined;
     if (!ch || !cat) continue;
+    if (cat.type !== domain) continue;   // [도메인 격리 가드] 활성 도메인 오답만 적재
 
     items.push({
       questionId:      qid,

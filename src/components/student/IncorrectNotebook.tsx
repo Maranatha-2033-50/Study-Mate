@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from '@/lib/supabase/client';
@@ -55,20 +55,13 @@ function MD({ children }: { children: string }) {
 const nl = (s: string) => s.replace(/\\n/g, '\n');
 const eq = (a: string, b: string) => a.trim().toUpperCase() === b.trim().toUpperCase();
 
-// ── 분류 탭 정의 (자격증 최우선) ──────────────────────────────
-const TABS: { type: CategoryType; label: string }[] = [
-  { type: 'CERT',   label: '자격증' },
-  { type: 'LANG',   label: '어학 영역' },
-  { type: 'SCHOOL', label: '중고등 교과' },
-];
-
 type RetryResult = 'idle' | 'correct' | 'wrong';
 
+/* items 는 서버에서 활성 도메인(sm_domain)으로 이미 격리되어 전달된다 → 도메인 탭 불필요 */
 export function IncorrectNotebook({ items: initialItems }: { items: IncorrectItem[] }) {
   const supabase = createClient();
 
   const [items,      setItems]      = useState<IncorrectItem[]>(initialItems);
-  const [activeType, setActiveType] = useState<CategoryType>('CERT');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [clearingId, setClearingId] = useState<string | null>(null);
   const [toast,      setToast]      = useState<string | null>(null);
@@ -79,13 +72,7 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
   const [quizPhase,  setQuizPhase]  = useState<'idle' | 'grading'>('idle');
   const [quizResult, setQuizResult] = useState<RetryResult>('idle');
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = {};
-    for (const it of items) c[it.categoryType] = (c[it.categoryType] ?? 0) + 1;
-    return c;
-  }, [items]);
-
-  const visible  = items.filter((it) => it.categoryType === activeType);
+  const visible  = items;
   const selected = items.find((it) => it.questionId === selectedId) ?? null;
 
   const pickCard = (id: string) => {
@@ -187,30 +174,6 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
         <span className="text-sm font-semibold text-slate-500 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
           남은 오답 <span className="text-rose-500 font-bold">{items.length}</span>개
         </span>
-      </div>
-
-      {/* ── 대형 분류 탭 ── */}
-      <div className="flex gap-2 flex-wrap">
-        {TABS.map((t) => {
-          const active = t.type === activeType;
-          const n = counts[t.type] ?? 0;
-          return (
-            <button
-              key={t.type}
-              onClick={() => { setActiveType(t.type); setSelectedId(null); setQuizMode(false); }}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold border transition-all duration-200
-                ${active
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:text-indigo-600'}`}
-            >
-              {t.label}
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full
-                ${active ? 'bg-white/20 text-white' : n > 0 ? 'bg-rose-100 text-rose-500' : 'bg-slate-100 text-slate-400'}`}>
-                {n}
-              </span>
-            </button>
-          );
-        })}
       </div>
 
       {/* ── 2열 스플릿: 좌 40% 리스트 / 우 60% 상세 ── */}
