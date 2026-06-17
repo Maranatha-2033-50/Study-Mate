@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { difficultyStyle } from '@/lib/difficulty';
 import {
   RotateCcw, CheckCircle2, Calendar, AlertTriangle,
-  NotebookPen, ChevronRight, Sparkles, Send,
+  NotebookPen, ChevronRight, Sparkles, Send, X, MessageCircleQuestion,
 } from 'lucide-react';
 import type { CategoryType, QuestionType, QuestionOptions } from '@/types';
 
@@ -65,6 +65,11 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [clearingId, setClearingId] = useState<string | null>(null);
   const [toast,      setToast]      = useState<string | null>(null);
+
+  // 선생님께 질문하기(1:1 튜터 Q&A) 상태
+  const [askItem, setAskItem] = useState<IncorrectItem | null>(null);
+  const [askText, setAskText] = useState('');
+  const [asking,  setAsking]  = useState(false);
 
   // 재도전(미니 퀴즈) 상태
   const [quizMode,   setQuizMode]   = useState(false);
@@ -154,6 +159,67 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
       setQuizPhase('idle');
       setQuizResult('idle');
     }
+  };
+
+  // ── 선생님께 질문하기: 오답 컨텍스트(문항+선지+정답+내 오답+AI해설)를 묶어 DB 저장 ──
+  const submitQuestion = async () => {
+    if (!askItem || !askText.trim()) return;
+    setAsking(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setAsking(false); return; }
+
+    // 담당 튜터 자동 배정(매핑된 첫 튜터, 없으면 미배정 NULL)
+    const { data: map } = await supabase
+      .from('tutor_students')
+      .select('tutor_id')
+      .eq('student_id', user.id)
+      .limit(1)
+      .maybeSingle();
+
+    const wrongContext = {
+      question_text:     askItem.questionText,
+      options:           askItem.options,
+      correct_answer:    askItem.answer,
+      user_wrong_answer: askItem.lastWrongAnswer,
+      level_1:           askItem.level_1,
+      level_2:           askItem.level_2,
+      category_title:    askItem.categoryTitle,
+      difficulty:        askItem.difficulty,
+    };
+
+    const { data: q, error } = await supabase
+      .from('tutor_questions')
+      .insert({
+        student_id:    user.id,
+        tutor_id:      map?.tutor_id ?? null,
+        question_id:   askItem.questionId,
+        wrong_context: wrongContext,
+        ai_analysis:   askItem.explanation ?? null,
+      })
+      .select('id')
+      .single();
+
+    if (error || !q) {
+      setAsking(false);
+      setToast('질문 전송 실패: ' + (error?.message ?? ''));
+      setTimeout(() => setToast(null), 3200);
+      return;
+    }
+
+    // 첫 학생 메시지(student_message)를 스레드에 적재
+    await supabase.from('tutor_messages').insert({
+      question_id: q.id,
+      sender_id:   user.id,
+      sender_role: 'student',
+      body:        askText.trim(),
+    });
+
+    setAsking(false);
+    setAskItem(null);
+    setAskText('');
+    setToast('선생님께 질문이 전송되었습니다! 답변이 등록되면 알려드릴게요.');
+    setTimeout(() => setToast(null), 3200);
   };
 
   const diffColor = (d: string) => difficultyStyle(d).badge;
@@ -246,11 +312,85 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
               onPickAnswer={(v) => { setQuizAnswer(v); setQuizResult('idle'); }}
               onSubmit={submitRetry}
               onCancelQuiz={() => { setQuizMode(false); setQuizResult('idle'); }}
+              onAskTutor={() => { setAskItem(selected); setAskText(''); }}
               diffColor={diffColor}
             />
           )}
         </div>
       </div>
+
+      {/* ── 선생님께 질문하기 모달 ── */}
+      {askItem && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 px-4 py-6 backdrop-blur-sm sm:items-center"
+          onClick={() => !asking && setAskItem(null)}
+        >
+          <div
+            className="relative max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => !asking && setAskItem(null)}
+              aria-label="닫기"
+              className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100"
+            >
+              <X size={16} />
+            </button>
+
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-indigo-500">
+              <MessageCircleQuestion size={14} /> 1:1 선생님 질문
+            </p>
+            <h3 className="mt-1 text-lg font-extrabold text-slate-900">이해가 안 되는 부분을 적어주세요</h3>
+
+            {/* 자동 첨부되는 컨텍스트 요약 */}
+            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
+              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                자동 첨부 — 문제·내 오답·AI 해설
+              </p>
+              <p className="text-xs font-medium text-slate-500">
+                {askItem.level_1} › {askItem.level_2} · 난이도 {askItem.difficulty}
+              </p>
+              <p className="mt-1.5 line-clamp-2 text-sm text-slate-700">
+                {nl(askItem.questionText).replace(/[#*`>]/g, '').slice(0, 120)}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-0.5 text-rose-600">
+                  내 오답: {askItem.lastWrongAnswer || '(미답)'}
+                </span>
+                <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">
+                  정답: {askItem.answer}
+                </span>
+              </div>
+            </div>
+
+            <textarea
+              value={askText}
+              onChange={(e) => setAskText(e.target.value)}
+              rows={4}
+              placeholder="예) 정답이 왜 C인지 모르겠어요. 2번 보기와의 차이가 헷갈립니다."
+              className="mt-4 w-full rounded-xl border border-slate-200 px-4 py-3 text-sm
+                         focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+            />
+
+            <div className="mt-4 flex gap-2.5">
+              <button
+                onClick={submitQuestion}
+                disabled={asking || !askText.trim()}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3
+                           text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
+              >
+                <Send size={15} /> {asking ? '전송 중…' : '선생님께 보내기'}
+              </button>
+              <button
+                onClick={() => !asking && setAskItem(null)}
+                className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-500 hover:bg-slate-50"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 초록 토스트 ── */}
       {toast && (
@@ -268,7 +408,7 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
 // ── 우측 상세 패널 ───────────────────────────────────────────
 function DetailPanel({
   item, quizMode, quizAnswer, quizPhase, quizResult,
-  onEnterQuiz, onPickAnswer, onSubmit, onCancelQuiz, diffColor,
+  onEnterQuiz, onPickAnswer, onSubmit, onCancelQuiz, onAskTutor, diffColor,
 }: {
   item:         IncorrectItem;
   quizMode:     boolean;
@@ -279,6 +419,7 @@ function DetailPanel({
   onPickAnswer: (v: string) => void;
   onSubmit:     () => void;
   onCancelQuiz: () => void;
+  onAskTutor:   () => void;
   diffColor:    (d: string) => string;
 }) {
   const optionKeys = item.options ? Object.keys(item.options) : [];
@@ -439,6 +580,16 @@ function DetailPanel({
                          hover:bg-indigo-600 transition-colors duration-200"
             >
               <RotateCcw size={16} /> 이 문항 다시 풀기
+            </button>
+
+            {/* ── 이해가 안 돼요? 선생님께 질문하기 (1:1 튜터 Q&A) ── */}
+            <button
+              onClick={onAskTutor}
+              className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl
+                         border border-indigo-200 bg-indigo-50/60 text-indigo-700 text-sm font-semibold
+                         hover:bg-indigo-100 transition-colors duration-200"
+            >
+              <MessageCircleQuestion size={16} /> 이해가 안 돼요? 선생님께 질문하기
             </button>
           </>
         )}
