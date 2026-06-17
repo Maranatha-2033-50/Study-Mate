@@ -80,7 +80,7 @@ const LNB_ITEMS = [
   { key: 'dashboard', label: '대시보드',        icon: LayoutDashboard, route: (d: DomainMode) => DOMAIN_HOME[d], match: (p: string, d: DomainMode) => p === DOMAIN_HOME[d] },
   { key: 'mock',      label: '실전 모의고사',    icon: ClipboardCheck,  route: () => '/student/diagnostic',       match: (p: string) => p.startsWith('/student/diagnostic') },
   { key: 'training',  label: '취약단원 훈련방',  icon: Target,          route: () => '/student/training',         match: (p: string) => p.startsWith('/student/training') },
-  { key: 'incorrect', label: '오답 보관함',      icon: NotebookPen,     route: () => '/student/incorrect',        match: (p: string) => p.startsWith('/student/incorrect') },
+  { key: 'incorrect', label: '오답 보관함',      icon: NotebookPen,     route: () => '/student/incorrect',        match: (p: string) => p.startsWith('/student/incorrect') || p.startsWith('/student/support') },
   { key: 'planner',   label: 'AI 플래너',        icon: CalendarClock,   route: () => '/student/planner',          match: (p: string) => p.startsWith('/student/planner') },
 ] as const;
 

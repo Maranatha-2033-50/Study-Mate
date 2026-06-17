@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from '@/lib/supabase/client';
@@ -237,9 +238,18 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
             다시 풀어 맞히면 보관함에서 자동으로 사라집니다. 약점을 하나씩 정복하세요.
           </p>
         </div>
-        <span className="text-sm font-semibold text-slate-500 bg-white border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-          남은 오답 <span className="text-rose-500 font-bold">{items.length}</span>개
-        </span>
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/student/support/qna"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200 bg-white px-3.5 py-2
+                       text-sm font-semibold text-indigo-600 shadow-sm transition-colors hover:bg-indigo-50"
+          >
+            <MessageCircleQuestion size={15} /> 선생님 문의방
+          </Link>
+          <span className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-500 shadow-sm">
+            남은 오답 <span className="font-bold text-rose-500">{items.length}</span>개
+          </span>
+        </div>
       </div>
 
       {/* ── 2열 스플릿: 좌 40% 리스트 / 우 60% 상세 ── */}

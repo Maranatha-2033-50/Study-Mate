@@ -203,6 +203,44 @@ export interface SubjectiveFeedback {
   tutor_guide:      string;                            // [강사용] AI 코칭 백서 (한국어 마크다운)
 }
 
+// ─── 1:1 튜터 Q&A (오답노트 연동 쪽지방) — 011 마이그레이션 ───────────────────
+
+/** tutor_questions.wrong_context — 질문 생성 시 패키징된 오답 컨텍스트 스냅샷 */
+export interface WrongContext {
+  question_text:     string;
+  options:           QuestionOptions | null;
+  correct_answer:    string;
+  user_wrong_answer: string;
+  level_1:           string;
+  level_2:           string;
+  category_title:    string;
+  difficulty:        string;
+}
+
+export type TutorQuestionStatus = 'OPEN' | 'ANSWERED' | 'CLOSED';
+export type MessageSenderRole   = 'student' | 'tutor';
+
+export interface TutorQuestion {
+  id:            string;
+  student_id:    string;
+  tutor_id:      string | null;
+  question_id:   string | null;
+  wrong_context: WrongContext;
+  ai_analysis:   string | null;
+  status:        TutorQuestionStatus;
+  created_at:    string;
+  updated_at:    string;
+}
+
+export interface TutorMessage {
+  id:          string;
+  question_id: string;
+  sender_id:   string;
+  sender_role: MessageSenderRole;
+  body:        string;
+  created_at:  string;
+}
+
 export interface SubjectiveGradeRequest {
   exam_type:     SubjectiveExamType;
   question_text: string;
