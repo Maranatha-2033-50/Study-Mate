@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { DOMAIN_COOKIE, DOMAIN_HOME, isDomainMode } from '@/lib/domain';
 import { LayoutDashboard, Brain, LogOut, NotebookPen, Award, Languages, GraduationCap } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -15,7 +17,11 @@ const NAV_ITEMS = [
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+
+  // 도메인 게이트: 포탈에서 주입한 sm_domain 쿠키 → 미로그인 시 해당 도메인 홈으로 복귀
+  const domainCookie = (await cookies()).get(DOMAIN_COOKIE)?.value;
+  const domainHome = isDomainMode(domainCookie) ? DOMAIN_HOME[domainCookie] : '/';
+  if (!user) redirect(`/login?next=${encodeURIComponent(domainHome)}`);
 
   const { data: profile } = await supabase
     .from('profiles')
