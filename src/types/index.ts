@@ -120,6 +120,12 @@ export interface CategoryAccuracy {
   total_attempts: number;
 }
 
+// ─── Monetization / Paywall (향후 프리미엄 결제 퍼널용 스캐폴딩) ────────────────
+//  현재 DB(profiles)에는 컬럼이 없으며, 결제 퍼널 개통 시 컬럼 추가 후 사용한다.
+//  - subscription_status: 무료체험(FREE_TRIAL) vs 유료(PREMIUM)
+//  - is_plan_locked: 무료 사용자의 추가 플랜 생성을 잠글지 여부(결제 유도 트리거)
+export type SubscriptionStatus = 'FREE_TRIAL' | 'PREMIUM';
+
 // ─── AI Planner (Interactive Precision Planner — Study Budget 기반) ─────────────
 
 export type WeekdayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';

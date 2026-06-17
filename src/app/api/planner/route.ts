@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { computeStudyBudget, WEEKDAYS } from '@/lib/planner-budget';
 import { generateInteractivePlan, mockPlan, type PlanGenInput } from '@/lib/ai/study-plan';
-import type { AvailabilityMatrix, InteractivePlan, WeaknessStat } from '@/types';
+import type { AvailabilityMatrix, InteractivePlan, SubscriptionStatus, WeaknessStat } from '@/types';
 
 interface Body {
   category_id:         string;
@@ -19,6 +19,18 @@ export async function POST(req: NextRequest) {
   const body: Body = await req.json();
   if (!body.category_id || !body.exam_date || !body.availability_matrix) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+  }
+
+  // ── [Paywall Hook — 향후 결제 퍼널 연동 지점] ───────────────────────────────
+  //  무료체험(FREE_TRIAL) 사용자가 플랜을 생성할 때 결제를 유도하기 위한 가드.
+  //  지금은 모든 사용자를 FREE_TRIAL·미잠금으로 간주해 그대로 통과시킨다(no-op).
+  //  결제 퍼널 개통 시: profiles 에 subscription_status/is_plan_locked 컬럼을 추가하고
+  //  아래 값을 프로필에서 읽어와, 잠긴 무료 사용자면 402(UPGRADE_REQUIRED)를 반환하면
+  //  클라이언트에서 결제 모달만 띄우도록 바로 연결된다.
+  const subscriptionStatus = 'FREE_TRIAL' as SubscriptionStatus;
+  const isPlanLocked = false as boolean;
+  if (subscriptionStatus !== 'PREMIUM' && isPlanLocked) {
+    // return NextResponse.json({ error: 'UPGRADE_REQUIRED' }, { status: 402 });
   }
 
   // 1. Study Budget 계산 (오늘~시험일 요일별 가용시간 합산)

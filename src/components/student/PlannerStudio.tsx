@@ -144,6 +144,16 @@ export function PlannerStudio({ categoryId, categoryTitle, weakStats, initialPla
   const generate = async () => {
     if (!examDate) { setError('목표 시험일을 선택해 주세요.'); return; }
     if (!categoryId) { setError('카테고리가 선택되지 않았습니다.'); return; }
+
+    // ── [Paywall Hook — 플랜 생성 완료 콜백 결제 유도 지점] ──────────────────
+    //  무료체험(FREE_TRIAL) 사용자가 플랜 생성을 시도할 때 결제 모달을 띄울 자리.
+    //  결제 퍼널 개통 시 아래 분기만 활성화하면 된다(엔타이틀먼트는 서버에서 검증):
+    //    if (subscription_status !== 'PREMIUM' && is_plan_locked) {
+    //      setPaywallOpen(true);   // <PaywallModal/> 만 얹으면 동작
+    //      return;
+    //    }
+    //  서버(/api/planner)도 402(UPGRADE_REQUIRED)를 반환하도록 이미 훅이 준비돼 있다.
+
     setError(''); setGenerating(true);
     try {
       const res = await fetch('/api/planner', {
