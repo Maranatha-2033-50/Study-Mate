@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import {
   Menu, X, Lightbulb, HelpCircle, Clock, Sparkles,
   LayoutDashboard, ClipboardCheck, Target, NotebookPen, CalendarClock,
+  Globe2, RotateCcw,
 } from 'lucide-react';
 import { DOMAIN_META, DOMAIN_HOME, type DomainMode, type DomainGuideTip } from '@/lib/domain';
 import { useCurriculumStore } from '@/stores/curriculumStore';
@@ -76,44 +77,77 @@ export function GnbTabs({
   );
 }
 
-/* ── SCHOOL 전용 GNB: 플랫 카테고리 쿼리 대신 CurriculumExplorer가 publish한
-   세부 과목(Course)을 동적 탭으로 노출. 클릭 시 카드 필터(activeCourse) 동기화. ── */
-export function SchoolGnbTabs() {
-  const courses = useCurriculumStore((s) => s.courses);
-  const active = useCurriculumStore((s) => s.activeCourse);
-  const setActiveCourse = useCurriculumStore((s) => s.setActiveCourse);
+/* ── SCHOOL 전용 GNB: 글로벌 교과 마스터 필터 (인라인 캐스케이딩 드롭다운) ──
+   플랫 카테고리 쿼리 대신, 상단바에서 국가→학년/과정→시험목적을 직접 제어.
+   country는 KR/CA/UK 하드 가드, grade/stream은 실제 데이터(tree)에서 캐스케이딩. */
+export interface CurriculumTreeRow { country: string; grade: string; stream: string }
 
-  if (courses.length === 0) {
-    return (
-      <span className="hidden whitespace-nowrap text-xs font-medium text-slate-400 sm:inline">
-        하단 글로벌 교과 탐색에서 국가·학년·목적을 선택하세요
-      </span>
-    );
-  }
+const SCHOOL_COUNTRIES = ['KR', 'CA', 'UK'] as const;
+const COUNTRY_LABEL: Record<string, string> = { KR: '🇰🇷 한국', CA: '🇨🇦 캐나다', UK: '🇬🇧 영국' };
+const uniqStr = (xs: (string | null | undefined)[]) => [...new Set(xs.filter((x): x is string => !!x))];
+
+function CompactSelect({
+  value, placeholder, options, onChange, disabled, render,
+}: {
+  value: string; placeholder: string; options: string[];
+  onChange: (v: string) => void; disabled?: boolean; render?: (v: string) => string;
+}) {
+  return (
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700
+                 transition-colors focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100
+                 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-300"
+    >
+      <option value="">{placeholder}</option>
+      {options.map((o) => <option key={o} value={o}>{render ? render(o) : o}</option>)}
+    </select>
+  );
+}
+
+export function SchoolMasterFilter({ tree }: { tree: CurriculumTreeRow[] }) {
+  const country = useCurriculumStore((s) => s.country);
+  const grade   = useCurriculumStore((s) => s.grade);
+  const stream  = useCurriculumStore((s) => s.stream);
+  const setCountry = useCurriculumStore((s) => s.setCountry);
+  const setGrade   = useCurriculumStore((s) => s.setGrade);
+  const setStream  = useCurriculumStore((s) => s.setStream);
+  const reset      = useCurriculumStore((s) => s.reset);
+
+  const loaded = tree.length > 0;
+  const grades  = uniqStr(tree.filter((t) => t.country === country).map((t) => t.grade));
+  const streams = uniqStr(tree.filter((t) => t.country === country && t.grade === grade).map((t) => t.stream));
 
   return (
-    <nav className="flex items-center gap-1 overflow-x-auto">
-      <button
-        onClick={() => setActiveCourse(null)}
-        className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors
-          ${active === null ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
-      >
-        전체
-      </button>
-      {courses.map((c) => {
-        const isActive = c === active;
-        return (
-          <button
-            key={c}
-            onClick={() => setActiveCourse(c)}
-            className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors
-              ${isActive ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
-          >
-            {c}
-          </button>
-        );
-      })}
-    </nav>
+    <div className="flex items-center gap-1.5 overflow-x-auto">
+      <Globe2 size={15} className="hidden flex-none text-indigo-500 sm:block" />
+      {/* 1. 국가 — 하드 가드(KR/CA/UK) */}
+      <CompactSelect
+        value={country} placeholder="국가" options={[...SCHOOL_COUNTRIES]}
+        render={(c) => COUNTRY_LABEL[c] ?? c}
+        onChange={setCountry}
+      />
+      {/* 2. 학년/과정 — 국가 종속 (데이터 로딩/미선택 시 잠금) */}
+      <CompactSelect
+        value={grade} placeholder="학년/과정" options={grades}
+        disabled={!loaded || !country || grades.length === 0}
+        onChange={setGrade}
+      />
+      {/* 3. 시험 목적/스트림 — 학년 종속 */}
+      <CompactSelect
+        value={stream} placeholder="시험 목적" options={streams}
+        disabled={!loaded || !grade || streams.length === 0}
+        onChange={setStream}
+      />
+      {(country || grade || stream) && (
+        <button onClick={reset} aria-label="필터 초기화"
+          className="flex-none rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600">
+          <RotateCcw size={14} />
+        </button>
+      )}
+    </div>
   );
 }
 

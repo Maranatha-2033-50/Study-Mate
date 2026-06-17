@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 import { buildExams, CURRICULUM_META, type ExamQuestionRow } from '@/lib/exams';
 import { StudentShell } from '@/components/layout/StudentChrome';
 import { PacemakerBanner } from '@/components/student/PacemakerBanner';
-import { CurriculumExplorer } from '@/components/student/CurriculumExplorer';
 import { computeStudyBudget } from '@/lib/planner-budget';
 import { DOMAIN_META } from '@/lib/domain';
 import {
@@ -259,15 +258,8 @@ export async function DomainDashboard({
           </Link>
         )}
 
-        {/* ── 실전 모의고사 카탈로그 ──
-             SCHOOL: 글로벌 4단계 트리(국가→학년→스트림→과목) 캐스케이딩 탐색기
-             그 외(자격/어학): 기존 커리큘럼 트랙 그룹 렌더 */}
-        {exams.length > 0 && siteType === 'SCHOOL' && (
-          <div id="exams" className="scroll-mt-24">
-            <CurriculumExplorer exams={exams} />
-          </div>
-        )}
-        {exams.length > 0 && siteType !== 'SCHOOL' && (
+        {/* ── 실전 모의고사 카탈로그 (자격/어학 — 커리큘럼 트랙 그룹 렌더) ── */}
+        {exams.length > 0 && (
           <div id="exams" className="space-y-6 scroll-mt-24">
             <div className="flex items-center gap-2">
               <FileText className="text-indigo-500" size={18} />

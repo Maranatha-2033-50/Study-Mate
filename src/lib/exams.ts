@@ -7,6 +7,7 @@ export interface ExamQuestionRow {
   learning_chapters: {
     level_1: string;
     level_2: string;
+    category_id?: string | null;
     curriculum_code?: string | null;
     country?:     string | null;
     grade_level?: string | null;
@@ -28,13 +29,14 @@ export const CURRICULUM_META: Record<string, { label: string; badge: string }> =
 interface ChapterTree { country: string | null; gradeLevel: string | null; stream: string | null; course: string | null }
 
 export function buildExams(rows: ExamQuestionRow[], categoryId: string): LanguageExamCard[] {
-  const objectiveByChapter = new Map<string, { skill: string; level_2: string; curriculumCode: string | null; tree: ChapterTree; count: number }>();
+  const objectiveByChapter = new Map<string, { skill: string; level_2: string; curriculumCode: string | null; tree: ChapterTree; catId: string; count: number }>();
   const essays: LanguageExamCard[] = [];
 
   for (const r of rows) {
     const skill   = r.learning_chapters?.level_1 ?? '문제';
     const level_2 = r.learning_chapters?.level_2 ?? '';
     const curriculumCode = r.learning_chapters?.curriculum_code ?? null;
+    const rowCategoryId = r.learning_chapters?.category_id ?? categoryId;  // 카드별 정확한 카테고리 라우팅
     const tree: ChapterTree = {
       country:    r.learning_chapters?.country ?? null,
       gradeLevel: r.learning_chapters?.grade_level ?? null,
@@ -48,25 +50,25 @@ export function buildExams(rows: ExamQuestionRow[], categoryId: string): Languag
         skill:         skill || 'Writing',
         title:         level_2 || 'Writing Task 2',
         questionCount: 1,
-        href:          `/student/writing?category=${categoryId}&question=${r.id}`,
+        href:          `/student/writing?category=${rowCategoryId}&question=${r.id}`,
         curriculumCode,
         ...tree,
       });
     } else {
-      const cur = objectiveByChapter.get(r.chapter_id) ?? { skill, level_2, curriculumCode, tree, count: 0 };
+      const cur = objectiveByChapter.get(r.chapter_id) ?? { skill, level_2, curriculumCode, tree, catId: rowCategoryId, count: 0 };
       cur.count += 1;
       objectiveByChapter.set(r.chapter_id, cur);
     }
   }
 
   const objective: LanguageExamCard[] = [...objectiveByChapter.entries()].map(
-    ([chapterId, { skill, level_2, curriculumCode, tree, count }]) => ({
+    ([chapterId, { skill, level_2, curriculumCode, tree, catId, count }]) => ({
       id:            chapterId,
       kind:          'OBJECTIVE',
       skill,
       title:         level_2 || `${skill} Practice`,
       questionCount: count,
-      href:          `/student/diagnostic?category=${categoryId}&chapter=${chapterId}`,
+      href:          `/student/diagnostic?category=${catId}&chapter=${chapterId}`,
       curriculumCode,
       ...tree,
     }),
