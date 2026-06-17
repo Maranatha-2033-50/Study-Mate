@@ -7,7 +7,7 @@ import {
   Menu, X, Lightbulb, HelpCircle, Clock, Sparkles,
   LayoutDashboard, ClipboardCheck, Target, NotebookPen, CalendarClock,
 } from 'lucide-react';
-import { DOMAIN_META, DOMAIN_HOME, type DomainMode } from '@/lib/domain';
+import { DOMAIN_META, DOMAIN_HOME, type DomainMode, type DomainGuideTip } from '@/lib/domain';
 
 /* ────────────────────────────────────────────────────────────────────────────
    학생 화면 크롬(Chrome) 공유 계약
@@ -115,19 +115,70 @@ function LnbList({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-/* ── 우측 가이드 패널 (Phase 2: 도메인별 정적 / Phase 4: 메뉴별 동적 예정) ── */
+/* ── 우측 가이드 패널: 활성 LNB 메뉴를 실시간 구독해 콘텐츠 스위칭 ──────────
+   pathname 기반으로 활성 메뉴 키를 산출 → 메뉴별 가이드로 동적 전환.
+   '대시보드'는 도메인 개요(DOMAIN_META)를 그대로 노출한다. */
 const GUIDE_ICONS = { HelpCircle, Clock, Sparkles } as const;
+
+type MenuKey = (typeof LNB_ITEMS)[number]['key'];
+
+function activeMenuKey(pathname: string, domain: DomainMode): MenuKey {
+  return LNB_ITEMS.find((i) => i.match(pathname, domain))?.key ?? 'dashboard';
+}
+
+/* 메뉴별 가이드 (dashboard 는 null → 도메인 개요 사용) */
+const MENU_GUIDE: Record<MenuKey, { title: string; tips: DomainGuideTip[] } | null> = {
+  dashboard: null,
+  mock: {
+    title: '실전 모의고사 가이드',
+    tips: [
+      { icon: 'HelpCircle', title: '모의고사란?', body: '실제 시험과 동일한 구성으로 출제 범위를 점검합니다. 단원별 세트를 골라 실전 감각을 끌어올리세요.' },
+      { icon: 'Clock',      title: '시간 관리',   body: '타이머가 작동하는 실전 룸입니다. 문항별 페이스를 기록해 시간 배분 전략을 다듬으세요.' },
+      { icon: 'Sparkles',   title: '결과 활용',   body: '응시 직후 취약 단원이 자동 분석되어 대시보드와 AI 플래너에 반영됩니다.' },
+    ],
+  },
+  training: {
+    title: '취약단원 훈련방 가이드',
+    tips: [
+      { icon: 'HelpCircle', title: '작동 원리',     body: 'AI가 오답·정답률을 분석해 가장 약한 단원의 문제를 실시간으로 출제합니다.' },
+      { icon: 'Clock',      title: 'COUNT vs TIME', body: '문항 수(COUNT) 또는 제한 시간(TIME) 챌린지를 선택해 집중 모드로 훈련하세요.' },
+      { icon: 'Sparkles',   title: '반복의 힘',     body: '약점은 짧게 자주 반복할 때 가장 빨리 메워집니다. 매일 10문항을 권장합니다.' },
+    ],
+  },
+  incorrect: {
+    title: '오답 보관함 · 망각곡선 가이드',
+    tips: [
+      { icon: 'Clock',      title: '망각곡선 복습 주기', body: '틀린 직후·1일·3일·7일 간격으로 다시 풀 때 장기 기억으로 굳어집니다.' },
+      { icon: 'HelpCircle', title: '자동 적립',         body: '모의고사·훈련방에서 틀린 문제가 자동으로 모입니다. 최신 시도가 정답이면 정복 처리되어 사라집니다.' },
+      { icon: 'Sparkles',   title: '재도전',            body: '보관함에서 바로 재응시해 오답을 정답으로 전환하세요.' },
+    ],
+  },
+  planner: {
+    title: 'AI 플래너 활용법',
+    tips: [
+      { icon: 'HelpCircle', title: '사용법',        body: '목표 시험일(D-Day)과 요일별 가용 시간을 입력하면, AI가 확보 시간 예산에 맞춰 로드맵을 설계합니다.' },
+      { icon: 'Clock',      title: 'Study Budget',  body: '주간 가용 시간 × 남은 일수 = 총 학습 예산. 예산 안에서 취약 단원에 가중치를 둬 배분합니다.' },
+      { icon: 'Sparkles',   title: '마일스톤 체크', body: '마일스톤을 체크하면 진행률이 대시보드 페이스메이커 배너에 실시간 반영됩니다.' },
+    ],
+  },
+};
 
 function GuidePanel() {
   const { domain } = useChrome();
+  const pathname = usePathname();
   const meta = DOMAIN_META[domain];
+
+  const menu = MENU_GUIDE[activeMenuKey(pathname, domain)];
+  const title = menu ? menu.title : `${meta.label} 학습 가이드`;
+  const tips  = menu ? menu.tips  : meta.tips;
+
   return (
     <div className="space-y-5 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2">
         <Lightbulb className="text-indigo-500" size={16} />
-        <h2 className="text-sm font-bold text-slate-800">{meta.label} 학습 가이드</h2>
+        <h2 className="text-sm font-bold text-slate-800">{title}</h2>
       </div>
-      {meta.tips.map((tip) => {
+      {tips.map((tip) => {
         const Icon = GUIDE_ICONS[tip.icon];
         return (
           <div key={tip.title} className="space-y-1.5">

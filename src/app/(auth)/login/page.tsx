@@ -3,6 +3,7 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { DOMAIN_HOME, readDomainCookieClient } from '@/lib/domain';
 import type { Provider } from '@supabase/supabase-js';
 
 // ── 소셜 로그인 버튼 디자인 정의 ──────────────────────────────
@@ -77,7 +78,10 @@ function LoginContent() {
       router.push(nextUrl);
       return;
     }
-    router.push(userRole === 'tutor' ? '/tutor/dashboard' : '/student/dashboard');
+    if (userRole === 'tutor') { router.push('/tutor/dashboard'); return; }
+    // 학생: sm_domain 쿠키의 활성 도메인 홈으로, 없으면 루트 관문 포탈로
+    const domain = readDomainCookieClient();
+    router.push(domain ? DOMAIN_HOME[domain] : '/');
   }
 
   const handleSubmit = async (e: React.FormEvent) => {

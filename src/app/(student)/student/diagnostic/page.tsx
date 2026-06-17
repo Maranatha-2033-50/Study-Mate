@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { DiagnosticTestRoom } from '@/components/student/DiagnosticTestRoom';
 import { StudentShell } from '@/components/layout/StudentChrome';
+import { DOMAIN_HOME, readDomainCookieClient } from '@/lib/domain';
 import type { StudySession, UniversalQuestion } from '@/types';
 
 type Phase = 'CONFIG' | 'TESTING' | 'DONE';
@@ -122,7 +123,11 @@ export default function DiagnosticPage() {
         <p className="text-gray-500">취약 단원 분석이 대시보드에 반영되었습니다.</p>
         <div className="flex gap-4">
           <button
-            onClick={() => router.push(`/student/dashboard?category=${categoryId}`)}
+            onClick={() => {
+              const domain = readDomainCookieClient();
+              const home = domain ? DOMAIN_HOME[domain] : '/';
+              router.push(categoryId ? `${home}?category=${categoryId}` : home);
+            }}
             className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
           >
             결과 보기

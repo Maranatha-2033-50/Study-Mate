@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { DOMAIN_COOKIE, DOMAIN_HOME, isDomainMode } from '@/lib/domain';
 
 // HashRouter URL(# 포함)에 ?login_status=success를 # 앞에 삽입
 function withLoginSuccess(url: string): string {
@@ -24,8 +25,10 @@ export async function GET(request: NextRequest) {
       if (next && next.startsWith('https://')) {
         return NextResponse.redirect(withLoginSuccess(next));
       }
-      // 내부 next 또는 기본 대시보드
-      const dest = next && next.startsWith('/') ? next : '/student/dashboard';
+      // 내부 next 우선, 없으면 활성 도메인 홈(sm_domain) → 최종 폴백은 루트 관문 포탈
+      const domainCookie = request.cookies.get(DOMAIN_COOKIE)?.value;
+      const fallback = isDomainMode(domainCookie) ? DOMAIN_HOME[domainCookie] : '/';
+      const dest = next && next.startsWith('/') ? next : fallback;
       return NextResponse.redirect(`${origin}${dest}`);
     }
   }

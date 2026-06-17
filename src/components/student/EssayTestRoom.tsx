@@ -101,7 +101,7 @@ export function EssayTestRoom({ question, categoryId, examType }: Props) {
 
         <div className="flex gap-3">
           <button
-            onClick={() => router.push(`/student/language?category=${categoryId}`)}
+            onClick={() => router.push(`/student/lang?category=${categoryId}`)}
             className="px-6 py-3 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700"
           >
             대시보드로 돌아가기

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from '@/lib/supabase/client';
+import { HelpTip } from '@/components/ui/HelpTip';
 import { computeStudyBudget, WEEKDAYS } from '@/lib/planner-budget';
 import {
   CalendarDays, RotateCcw, Sparkles, Clock, Target,
@@ -187,6 +188,10 @@ export function PlannerStudio({ categoryId, categoryTitle, weakStats, initialPla
           <div className="flex items-center gap-2 mb-4">
             <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center">1</span>
             <h3 className="font-bold text-slate-800">목표 시험일 (D-Day)</h3>
+            <HelpTip
+              align="left"
+              text="시험 당일 날짜를 선택하세요. 오늘부터 시험일까지 남은 일수(D-Day)를 기준으로 AI가 전체 학습 예산과 마일스톤 일정을 역산합니다."
+            />
           </div>
           <button
             onClick={() => setCalOpen(true)}
@@ -210,6 +215,10 @@ export function PlannerStudio({ categoryId, categoryTitle, weakStats, initialPla
           <div className="flex items-center gap-2 mb-4">
             <span className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center">2</span>
             <h3 className="font-bold text-slate-800">요일별 가용 학습 시간</h3>
+            <HelpTip
+              align="left"
+              text="요일마다 학습에 쓸 수 있는 시간을 시간 단위(0.5 단위 가능)로 입력하세요. 주간 합계 × 남은 주차로 총 학습 예산(Study Budget)이 계산됩니다."
+            />
             <span className="ml-auto text-xs text-slate-400">단위: 시간/일</span>
           </div>
           <div className="grid grid-cols-7 gap-2">

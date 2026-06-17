@@ -23,6 +23,13 @@ export function isDomainMode(v: string | undefined | null): v is DomainMode {
   return v === 'CERT' || v === 'LANG' || v === 'SCHOOL';
 }
 
+/** 클라이언트에서 sm_domain 쿠키를 읽어 활성 도메인 모드를 반환 (없으면 null) */
+export function readDomainCookieClient(): DomainMode | null {
+  if (typeof document === 'undefined') return null;
+  const m = document.cookie.match(new RegExp(`(?:^|;\\s*)${DOMAIN_COOKIE}=([^;]+)`));
+  return isDomainMode(m?.[1]) ? (m![1] as DomainMode) : null;
+}
+
 /* ── 포탈 관문 메타 (3분할 도메인 선택 페이지) ──────────────────────────────
    image: Unsplash 프리뷰(원격). 로딩 실패 시 gradient 배경이 그대로 노출되도록
           포탈에서 onError 가드 처리한다. 추후 전용 비주얼로 교체 가능. */

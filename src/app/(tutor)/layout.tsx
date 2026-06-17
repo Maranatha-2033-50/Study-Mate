@@ -13,7 +13,7 @@ export default async function TutorLayout({ children }: { children: React.ReactN
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'tutor') redirect('/student/dashboard');
+  if (profile?.role !== 'tutor') redirect('/');
 
   return (
     <div className="min-h-screen flex flex-col">

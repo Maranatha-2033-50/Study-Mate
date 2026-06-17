@@ -15,7 +15,7 @@ export default async function WritingPage({
   if (!user) redirect('/login');
 
   const { category, question } = await searchParams;
-  if (!question) redirect('/student/language');
+  if (!question) redirect('/student/lang');
 
   const { data: q } = await supabase
     .from('universal_questions')
@@ -23,7 +23,7 @@ export default async function WritingPage({
     .eq('id', question)
     .single();
 
-  if (!q) redirect(category ? `/student/language?category=${category}` : '/student/language');
+  if (!q) redirect(category ? `/student/lang?category=${category}` : '/student/lang');
 
   const categoryId = category ?? '';
   let examType: SubjectiveExamType = 'IELTS';
