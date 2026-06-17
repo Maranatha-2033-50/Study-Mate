@@ -69,6 +69,11 @@ export interface LanguageExamCard {
   questionCount:  number;
   href:           string;   // 시험방 라우트
   curriculumCode?: string | null;  // 교과 글로벌 트랙 분류 (KR_HIGH_MATH 등)
+  // 글로벌 교과 4단계 트리 (012 마이그레이션) — SCHOOL 캐스케이딩 필터용
+  country?:    string | null;   // KR | CA | UK
+  gradeLevel?: string | null;   // 고등 | A-Level | Grade 11-12 ...
+  stream?:     string | null;   // 내신/수능 | IB | AP | OSSD | A-Level ...
+  course?:     string | null;   // 수학 | Mathematics | English Literature ...
 }
 
 export type SessionType = 'DIAGNOSTIC' | 'INFINITE_TRAINING' | 'SUBJECTIVE';

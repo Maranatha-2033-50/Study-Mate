@@ -4,7 +4,15 @@ export interface ExamQuestionRow {
   id:            string;
   question_type: string;
   chapter_id:    string;
-  learning_chapters: { level_1: string; level_2: string; curriculum_code?: string | null } | null;
+  learning_chapters: {
+    level_1: string;
+    level_2: string;
+    curriculum_code?: string | null;
+    country?:     string | null;
+    grade_level?: string | null;
+    stream?:      string | null;
+    course?:      string | null;
+  } | null;
 }
 
 // 교과 글로벌 커리큘럼 트랙 메타 — 대시보드 카탈로그 그룹 헤더/뱃지용
@@ -17,14 +25,22 @@ export const CURRICULUM_META: Record<string, { label: string; badge: string }> =
 // 시드된 문항을 실전 모의고사 카드 목록으로 변환 (전 카테고리 공용)
 //  - 객관식/단답: 단원(chapter)별로 묶어 DiagnosticTestRoom 으로 라우팅
 //  - ESSAY: 문항별 EssayTestRoom(주관식 AI 첨삭) 으로 라우팅
+interface ChapterTree { country: string | null; gradeLevel: string | null; stream: string | null; course: string | null }
+
 export function buildExams(rows: ExamQuestionRow[], categoryId: string): LanguageExamCard[] {
-  const objectiveByChapter = new Map<string, { skill: string; level_2: string; curriculumCode: string | null; count: number }>();
+  const objectiveByChapter = new Map<string, { skill: string; level_2: string; curriculumCode: string | null; tree: ChapterTree; count: number }>();
   const essays: LanguageExamCard[] = [];
 
   for (const r of rows) {
     const skill   = r.learning_chapters?.level_1 ?? '문제';
     const level_2 = r.learning_chapters?.level_2 ?? '';
     const curriculumCode = r.learning_chapters?.curriculum_code ?? null;
+    const tree: ChapterTree = {
+      country:    r.learning_chapters?.country ?? null,
+      gradeLevel: r.learning_chapters?.grade_level ?? null,
+      stream:     r.learning_chapters?.stream ?? null,
+      course:     r.learning_chapters?.course ?? null,
+    };
     if (r.question_type === 'ESSAY') {
       essays.push({
         id:            r.id,
@@ -34,16 +50,17 @@ export function buildExams(rows: ExamQuestionRow[], categoryId: string): Languag
         questionCount: 1,
         href:          `/student/writing?category=${categoryId}&question=${r.id}`,
         curriculumCode,
+        ...tree,
       });
     } else {
-      const cur = objectiveByChapter.get(r.chapter_id) ?? { skill, level_2, curriculumCode, count: 0 };
+      const cur = objectiveByChapter.get(r.chapter_id) ?? { skill, level_2, curriculumCode, tree, count: 0 };
       cur.count += 1;
       objectiveByChapter.set(r.chapter_id, cur);
     }
   }
 
   const objective: LanguageExamCard[] = [...objectiveByChapter.entries()].map(
-    ([chapterId, { skill, level_2, curriculumCode, count }]) => ({
+    ([chapterId, { skill, level_2, curriculumCode, tree, count }]) => ({
       id:            chapterId,
       kind:          'OBJECTIVE',
       skill,
@@ -51,6 +68,7 @@ export function buildExams(rows: ExamQuestionRow[], categoryId: string): Languag
       questionCount: count,
       href:          `/student/diagnostic?category=${categoryId}&chapter=${chapterId}`,
       curriculumCode,
+      ...tree,
     }),
   );
 
