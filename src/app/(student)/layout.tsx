@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { LogOut } from 'lucide-react';
+import { LogOut, LayoutGrid } from 'lucide-react';
 import { BrandLogo } from '@/components/layout/BrandLogo';
 import { GnbTabs, StudentChromeProvider } from '@/components/layout/StudentChrome';
 import { DOMAIN_COOKIE, DOMAIN_HOME, isDomainMode, type DomainMode } from '@/lib/domain';
@@ -45,12 +46,33 @@ export default async function StudentLayout({ children }: { children: React.Reac
             <GnbTabs domain={domain} categories={categories} />
           </div>
 
-          {/* 우: 사용자 정보 */}
-          <div className="flex flex-shrink-0 items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
-              <span className="text-sm font-bold text-indigo-700">{initial}</span>
-            </div>
-            <span className="hidden text-sm font-medium text-slate-700 sm:block">{profile?.name}</span>
+          {/* 우: 도메인 변경(포탈) + 사용자 정보 */}
+          <div className="flex flex-shrink-0 items-center gap-2 sm:gap-3">
+            {/* 포탈로 워프 — 도메인 자유 변경 동선 */}
+            <Link
+              href="/"
+              aria-label="포탈로 이동 (도메인 변경)"
+              title="도메인 변경"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5
+                         text-xs font-medium text-slate-500 transition-colors
+                         hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600"
+            >
+              <LayoutGrid size={15} />
+              <span className="hidden sm:inline">도메인 변경</span>
+            </Link>
+
+            {/* 이름 클릭 → 마이페이지 */}
+            <Link
+              href="/student/mypage"
+              title="마이페이지"
+              className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-slate-100"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100">
+                <span className="text-sm font-bold text-indigo-700">{initial}</span>
+              </div>
+              <span className="hidden text-sm font-medium text-slate-700 sm:block">{profile?.name}</span>
+            </Link>
+
             <form action="/auth/signout" method="post">
               <button
                 type="submit"

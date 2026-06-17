@@ -1,28 +1,39 @@
+'use client';
+
 import Link from 'next/link';
-// import Image from 'next/image';
+import { useState } from 'react';
 
 /* ────────────────────────────────────────────────────────────────────────────
    스터디메이트 정식 브랜드 간판
-   - 구형 로고("AI" 배지 + "학습 플랫폼")를 대체한다.
-   - 좌측 아이콘 자리는 향후 전용 로고 파일로 즉시 교체할 수 있도록 비워 둔다.
-     로고 이미지가 준비되면 아래 PLACEHOLDER 블록을 지우고 <Image> 주석을 해제하세요.
-       <Image src="/brand/studymate-logo.svg" alt="스터디메이트" width={32} height={32} priority />
+   - 좌측 마크는 public/logo.png 를 우선 사용하고, 파일이 없거나 로드 실패 시에만
+     그라디언트 배지로 방어적 폴백한다(이미지 없을 때만 대체 표시).
+   - 우측 "스터디메이트" 워드마크는 항상 노출해 브랜드명을 보장한다.
 ──────────────────────────────────────────────────────────────────────────── */
 export function BrandLogo({ href = '/' }: { href?: string }) {
-  return (
-    <Link href={href} className="flex items-center gap-2.5 group">
-      {/* ── 로고 아이콘 플레이스홀더 (전용 이미지 준비 시 <Image>로 스왑) ── */}
-      <span
-        aria-hidden
-        className="flex h-8 w-8 items-center justify-center rounded-xl
-                   bg-gradient-to-br from-indigo-600 to-violet-600 shadow-sm
-                   ring-1 ring-inset ring-white/20 transition-transform duration-200
-                   group-hover:scale-105"
-      >
-        <span className="text-sm font-black tracking-tighter text-white">S</span>
-      </span>
+  const [imgOk, setImgOk] = useState(true);
 
-      {/* ── 정식 간판 텍스트 ── */}
+  return (
+    <Link href={href} className="group flex items-center gap-2.5">
+      {imgOk ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="/logo.png"
+          alt="스터디메이트"
+          onError={() => setImgOk(false)}
+          className="h-8 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
+        />
+      ) : (
+        <span
+          aria-hidden
+          className="flex h-8 w-8 items-center justify-center rounded-xl
+                     bg-gradient-to-br from-indigo-600 to-violet-600 shadow-sm
+                     ring-1 ring-inset ring-white/20 transition-transform duration-200
+                     group-hover:scale-105"
+        >
+          <span className="text-sm font-black tracking-tighter text-white">S</span>
+        </span>
+      )}
+
       <span className="text-[17px] font-extrabold tracking-tight text-slate-900">
         스터디메이트
       </span>
