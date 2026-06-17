@@ -6,6 +6,9 @@ export interface Profile {
   id: string;
   role: UserRole;
   name: string;
+  phone?: string | null;
+  subscription_status?: SubscriptionStatus;   // 'FREE_TRIAL' | 'PREMIUM' (010 마이그레이션)
+  interest_categories?: string[];             // learning_categories.id[] (010 마이그레이션)
   created_at: string;
 }
 
