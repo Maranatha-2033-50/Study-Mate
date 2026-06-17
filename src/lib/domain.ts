@@ -65,6 +65,64 @@ export const PORTAL_DOMAINS: PortalDomain[] = [
   },
 ];
 
+/* ── 글로벌 중·고교 코어 교과 트리 시드 (KR/CA/UK) ───────────────────────────
+   필터 드롭다운과 과목 카드를 이 설정에서 구동한다. DB 문항이 0개인 단원은
+   온디맨드 AI 생성기(/api/ai/generate-questions)가 실시간 공급·영속화한다. */
+export type SchoolCountry = 'KR' | 'CA' | 'UK';
+
+export interface CurriculumCourse { course: string; units: string[] }
+export interface CurriculumNode {
+  country: SchoolCountry;
+  grade:   string;   // 중등/고등 · Grade 11-12 · GCSE/A-Level
+  stream:  string;   // 내신/수능 · 내신/IB/AP · 공식 시험
+  courses: CurriculumCourse[];
+}
+
+const KR_HIGH_COURSES: CurriculumCourse[] = [
+  { course: '국어',     units: ['공통국어', '화법과 작문', '언어와 매체'] },
+  { course: '수학',     units: ['공통수학', '확률과 통계', '미적분', '기하'] },
+  { course: '영어',     units: ['공통영어'] },
+  { course: '과학탐구', units: ['물리학', '화학', '생명과학', '지구과학'] },
+];
+const KR_MID_COURSES: CurriculumCourse[] = [
+  { course: '국어', units: ['중등 국어'] },
+  { course: '수학', units: ['중등 수학'] },
+  { course: '영어', units: ['중등 영어'] },
+  { course: '과학', units: ['물리', '화학', '생명', '지구과학'] },
+];
+const CA_COURSES: CurriculumCourse[] = [
+  'Functions', 'Advanced Functions', 'Calculus & Vectors', 'Data Management',
+  'Physics', 'Chemistry', 'Biology', 'English',
+].map((c) => ({ course: c, units: [c] }));
+const UK_COURSES: CurriculumCourse[] = [
+  'Core Mathematics', 'Further Mathematics', 'Physics', 'Chemistry', 'Biology', 'English Literature',
+].map((c) => ({ course: c, units: [c] }));
+
+export const SCHOOL_CURRICULUM: CurriculumNode[] = [
+  // 대한민국
+  { country: 'KR', grade: '중등', stream: '내신', courses: KR_MID_COURSES },
+  { country: 'KR', grade: '고등', stream: '내신', courses: KR_HIGH_COURSES },
+  { country: 'KR', grade: '고등', stream: '수능', courses: KR_HIGH_COURSES },
+  // 캐나다 (OSSD)
+  ...['Grade 11', 'Grade 12'].flatMap((g) =>
+    ['내신', 'IB', 'AP'].map((s): CurriculumNode => ({ country: 'CA', grade: g, stream: s, courses: CA_COURSES }))),
+  // 영국
+  ...['GCSE', 'A-Level'].map((g): CurriculumNode => ({ country: 'UK', grade: g, stream: '공식 시험', courses: UK_COURSES })),
+];
+
+export const SCHOOL_COUNTRY_OPTIONS: SchoolCountry[] = ['KR', 'CA', 'UK'];
+const uniqArr = (xs: string[]) => [...new Set(xs)];
+
+export function schoolGrades(country: string): string[] {
+  return uniqArr(SCHOOL_CURRICULUM.filter((n) => n.country === country).map((n) => n.grade));
+}
+export function schoolStreams(country: string, grade: string): string[] {
+  return uniqArr(SCHOOL_CURRICULUM.filter((n) => n.country === country && n.grade === grade).map((n) => n.stream));
+}
+export function schoolNode(country: string, grade: string, stream: string): CurriculumNode | undefined {
+  return SCHOOL_CURRICULUM.find((n) => n.country === country && n.grade === grade && n.stream === stream);
+}
+
 /* ── 도메인별 UI 메타 (대시보드/사이드바/가이드 공용) ──────────────────────────
    기존 DomainDashboard 의 DOMAIN_META 를 공유 위치로 승격해 GNB/LNB/우측 가이드가
    동일한 라벨·색상·가이드 카피를 참조하도록 단일화한다. */

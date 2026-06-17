@@ -8,7 +8,10 @@ import {
   LayoutDashboard, ClipboardCheck, Target, NotebookPen, CalendarClock,
   Globe2, RotateCcw,
 } from 'lucide-react';
-import { DOMAIN_META, DOMAIN_HOME, type DomainMode, type DomainGuideTip } from '@/lib/domain';
+import {
+  DOMAIN_META, DOMAIN_HOME, SCHOOL_COUNTRY_OPTIONS, schoolGrades, schoolStreams,
+  type DomainMode, type DomainGuideTip,
+} from '@/lib/domain';
 import { useCurriculumStore } from '@/stores/curriculumStore';
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -80,11 +83,7 @@ export function GnbTabs({
 /* ── SCHOOL 전용 GNB: 글로벌 교과 마스터 필터 (인라인 캐스케이딩 드롭다운) ──
    플랫 카테고리 쿼리 대신, 상단바에서 국가→학년/과정→시험목적을 직접 제어.
    country는 KR/CA/UK 하드 가드, grade/stream은 실제 데이터(tree)에서 캐스케이딩. */
-export interface CurriculumTreeRow { country: string; grade: string; stream: string }
-
-const SCHOOL_COUNTRIES = ['KR', 'CA', 'UK'] as const;
 const COUNTRY_LABEL: Record<string, string> = { KR: '🇰🇷 한국', CA: '🇨🇦 캐나다', UK: '🇬🇧 영국' };
-const uniqStr = (xs: (string | null | undefined)[]) => [...new Set(xs.filter((x): x is string => !!x))];
 
 function CompactSelect({
   value, placeholder, options, onChange, disabled, render,
@@ -107,7 +106,7 @@ function CompactSelect({
   );
 }
 
-export function SchoolMasterFilter({ tree }: { tree: CurriculumTreeRow[] }) {
+export function SchoolMasterFilter() {
   const country = useCurriculumStore((s) => s.country);
   const grade   = useCurriculumStore((s) => s.grade);
   const stream  = useCurriculumStore((s) => s.stream);
@@ -116,29 +115,29 @@ export function SchoolMasterFilter({ tree }: { tree: CurriculumTreeRow[] }) {
   const setStream  = useCurriculumStore((s) => s.setStream);
   const reset      = useCurriculumStore((s) => s.reset);
 
-  const loaded = tree.length > 0;
-  const grades  = uniqStr(tree.filter((t) => t.country === country).map((t) => t.grade));
-  const streams = uniqStr(tree.filter((t) => t.country === country && t.grade === grade).map((t) => t.stream));
+  // 옵션은 글로벌 교과 트리 설정(config)에서 구동 → DB 유무와 무관하게 전체 트리 선택 가능
+  const grades  = country ? schoolGrades(country) : [];
+  const streams = (country && grade) ? schoolStreams(country, grade) : [];
 
   return (
     <div className="flex items-center gap-1.5 overflow-x-auto">
       <Globe2 size={15} className="hidden flex-none text-indigo-500 sm:block" />
       {/* 1. 국가 — 하드 가드(KR/CA/UK) */}
       <CompactSelect
-        value={country} placeholder="국가" options={[...SCHOOL_COUNTRIES]}
+        value={country} placeholder="국가" options={[...SCHOOL_COUNTRY_OPTIONS]}
         render={(c) => COUNTRY_LABEL[c] ?? c}
         onChange={setCountry}
       />
-      {/* 2. 학년/과정 — 국가 종속 (데이터 로딩/미선택 시 잠금) */}
+      {/* 2. 학년/과정 — 국가 종속 (미선택 시 잠금) */}
       <CompactSelect
         value={grade} placeholder="학년/과정" options={grades}
-        disabled={!loaded || !country || grades.length === 0}
+        disabled={!country || grades.length === 0}
         onChange={setGrade}
       />
       {/* 3. 시험 목적/스트림 — 학년 종속 */}
       <CompactSelect
         value={stream} placeholder="시험 목적" options={streams}
-        disabled={!loaded || !grade || streams.length === 0}
+        disabled={!grade || streams.length === 0}
         onChange={setStream}
       />
       {(country || grade || stream) && (

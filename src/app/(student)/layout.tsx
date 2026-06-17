@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { LogOut, LayoutGrid } from 'lucide-react';
 import { BrandLogo } from '@/components/layout/BrandLogo';
-import { GnbTabs, SchoolMasterFilter, StudentChromeProvider, type CurriculumTreeRow } from '@/components/layout/StudentChrome';
+import { GnbTabs, SchoolMasterFilter, StudentChromeProvider } from '@/components/layout/StudentChrome';
 import { DOMAIN_COOKIE, DOMAIN_HOME, isDomainMode, type DomainMode } from '@/lib/domain';
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
@@ -35,21 +35,6 @@ export default async function StudentLayout({ children }: { children: React.Reac
   const categoryFallback = categories[0]?.id ?? '';
   const initial = (profile?.name ?? 'U').charAt(0).toUpperCase();
 
-  // SCHOOL 마스터 필터용 글로벌 트리 조합 (전 SCHOOL 단원에서 distinct country/grade/stream)
-  const schoolTree: CurriculumTreeRow[] = [];
-  if (domain === 'SCHOOL') {
-    const { data: treeRows } = await supabase
-      .from('learning_chapters')
-      .select('country, grade_level, stream, learning_categories!inner(type)')
-      .eq('learning_categories.type', 'SCHOOL')
-      .not('country', 'is', null);
-    const seen = new Set<string>();
-    for (const r of (treeRows ?? []) as unknown as { country: string; grade_level: string; stream: string }[]) {
-      const key = `${r.country}|${r.grade_level}|${r.stream}`;
-      if (!seen.has(key)) { seen.add(key); schoolTree.push({ country: r.country, grade: r.grade_level, stream: r.stream }); }
-    }
-  }
-
   return (
     <div className="min-h-screen bg-slate-50">
       {/* ── GNB ── */}
@@ -60,7 +45,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
             <BrandLogo href={DOMAIN_HOME[domain]} />
             {/* SCHOOL은 플랫 카테고리 대신 상단 인라인 마스터 필터(국가→학년→목적) */}
             {domain === 'SCHOOL'
-              ? <SchoolMasterFilter tree={schoolTree} />
+              ? <SchoolMasterFilter />
               : <GnbTabs domain={domain} categories={categories} />}
           </div>
 
