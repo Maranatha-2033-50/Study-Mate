@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 import { Clock, Send } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { SubjectiveFeedback } from '@/components/SubjectiveFeedback';
+import { EssayFeedbackSkeleton } from '@/components/ui/Skeleton';
 import type {
   UniversalQuestion, SubjectiveExamType, SubjectiveFeedback as Feedback,
 } from '@/types';
@@ -66,7 +67,7 @@ export function EssayTestRoom({ question, categoryId, examType }: Props) {
       .single();
 
     try {
-      const res = await fetch('/api/grade-subjective', {
+      const res = await fetch('/api/ai/essay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -117,7 +118,16 @@ export function EssayTestRoom({ question, categoryId, examType }: Props) {
     );
   }
 
-  // ── 작성 / 채점 중 화면 ──
+  // ── 채점 중: 스켈레톤 (AI 지연 동안 화면 정지 방지) ──
+  if (phase === 'GRADING') {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+        <EssayFeedbackSkeleton />
+      </div>
+    );
+  }
+
+  // ── 작성 화면 ──
   return (
     <div className="flex flex-col h-[calc(100vh-3.5rem)] bg-slate-50">
       {/* 상단 툴바 */}
@@ -157,26 +167,22 @@ export function EssayTestRoom({ question, categoryId, examType }: Props) {
           <textarea
             value={essay}
             onChange={(e) => setEssay(e.target.value)}
-            disabled={phase === 'GRADING'}
             placeholder="Write your essay here…"
             className="flex-1 w-full resize-none rounded-xl border border-slate-200 bg-white
                        px-4 py-3 text-sm text-slate-800 leading-7
-                       focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100
-                       disabled:bg-slate-100"
+                       focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
           />
 
           {error && <p className="mt-3 text-xs text-rose-500">{error}</p>}
 
           <button
             onClick={submit}
-            disabled={phase === 'GRADING' || essay.trim().length === 0}
+            disabled={essay.trim().length === 0}
             className="mt-4 inline-flex items-center justify-center gap-2 py-3.5 rounded-xl
                        bg-indigo-600 text-white text-sm font-semibold
                        hover:bg-indigo-700 disabled:opacity-50 transition-colors"
           >
-            {phase === 'GRADING'
-              ? 'AI 채점 중…'
-              : <><Send size={15} /> 제출하고 AI 첨삭 받기</>}
+            <Send size={15} /> 제출하고 AI 첨삭 받기
           </button>
         </div>
       </div>

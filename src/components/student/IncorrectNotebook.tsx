@@ -6,9 +6,10 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { createClient } from '@/lib/supabase/client';
 import { difficultyStyle } from '@/lib/difficulty';
+import { Skeleton } from '@/components/ui/Skeleton';
 import {
   RotateCcw, CheckCircle2, Calendar, AlertTriangle,
-  NotebookPen, ChevronRight, Sparkles, Send, X, MessageCircleQuestion,
+  NotebookPen, ChevronRight, Sparkles, Send, X, MessageCircleQuestion, Brain,
 } from 'lucide-react';
 import type { CategoryType, QuestionType, QuestionOptions } from '@/types';
 
@@ -436,6 +437,36 @@ function DetailPanel({
   const isObjective = item.questionType !== 'SHORT_ANSWER' && !!item.options;
   const passage = item.passage ? nl(item.passage) : '';
 
+  // AI 맹점 분석 (Upstage Solar) — 서버 라우트 경유, 키 미노출
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const runAnalysis = async () => {
+    setAnalyzing(true);
+    try {
+      const res = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question_text:     item.questionText,
+          options:           item.options,
+          correct_answer:    item.answer,
+          user_wrong_answer: item.lastWrongAnswer,
+          level_1:           item.level_1,
+          level_2:           item.level_2,
+          category_title:    item.categoryTitle,
+          difficulty:        item.difficulty,
+        }),
+      });
+      const data = await res.json();
+      setAnalysis(data.report ?? 'AI 분석을 불러오지 못했습니다.');
+    } catch {
+      setAnalysis('AI 분석 중 오류가 발생했습니다.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* 좌측 고정 지문 (있을 경우) */}
@@ -579,6 +610,35 @@ function DetailPanel({
                   <Sparkles size={15} /> 해설
                 </p>
                 <MD>{nl(item.explanation)}</MD>
+              </div>
+            )}
+
+            {/* ── AI 맹점 분석 (Solar) ── */}
+            {!analysis && (
+              <button
+                onClick={runAnalysis}
+                disabled={analyzing}
+                className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl
+                           border border-violet-200 bg-violet-50/60 text-violet-700 text-sm font-semibold
+                           hover:bg-violet-100 transition-colors duration-200 disabled:opacity-60"
+              >
+                <Brain size={16} /> {analyzing ? 'AI가 맹점을 분석 중…' : 'AI 맹점 분석 받기'}
+              </button>
+            )}
+            {analyzing && (
+              <div className="space-y-2 rounded-2xl border border-violet-100 bg-white p-4">
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-5/6" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+            )}
+            {analysis && (
+              <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50/80 to-white p-5">
+                <p className="mb-2 flex items-center gap-1.5 text-sm font-bold text-violet-700">
+                  <Brain size={15} /> AI 맹점 분석 (Solar)
+                </p>
+                <MD>{nl(analysis)}</MD>
               </div>
             )}
 

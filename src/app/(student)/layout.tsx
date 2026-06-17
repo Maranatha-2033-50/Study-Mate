@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { LogOut, LayoutGrid } from 'lucide-react';
 import { BrandLogo } from '@/components/layout/BrandLogo';
-import { GnbTabs, StudentChromeProvider } from '@/components/layout/StudentChrome';
+import { GnbTabs, SchoolGnbTabs, StudentChromeProvider } from '@/components/layout/StudentChrome';
 import { DOMAIN_COOKIE, DOMAIN_HOME, isDomainMode, type DomainMode } from '@/lib/domain';
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
@@ -43,7 +43,10 @@ export default async function StudentLayout({ children }: { children: React.Reac
           {/* 좌: 브랜드 간판 + 현재 도메인 세부 종목 탭 */}
           <div className="flex min-w-0 items-center gap-6">
             <BrandLogo href={DOMAIN_HOME[domain]} />
-            <GnbTabs domain={domain} categories={categories} />
+            {/* SCHOOL은 플랫 카테고리 대신 글로벌 교과 탐색이 publish한 Course 탭을 동기화 */}
+            {domain === 'SCHOOL'
+              ? <SchoolGnbTabs />
+              : <GnbTabs domain={domain} categories={categories} />}
           </div>
 
           {/* 우: 도메인 변경(포탈) + 사용자 정보 */}

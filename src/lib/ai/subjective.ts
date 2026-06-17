@@ -1,12 +1,9 @@
+import { callOpenAI } from '@/lib/ai/clients';
 import type {
   SubjectiveExamType,
   SubjectiveFeedback,
   WeaknessStat,
 } from '@/types';
-
-const AI_BASE_URL = process.env.AI_BASE_URL ?? 'https://api.openai.com/v1';
-const AI_MODEL    = process.env.AI_MODEL    ?? 'gpt-4o-mini';
-const AI_API_KEY  = process.env.AI_API_KEY  ?? '';
 
 // ── 공식 채점 루브릭 (시스템 프롬프트에 주입) ─────────────────────────────────
 const RUBRICS: Record<SubjectiveExamType, string> = {
@@ -38,6 +35,7 @@ Respond with a SINGLE JSON object only (no markdown, no prose) in EXACTLY this s
   "overall_score": number,
   "criteria": { "<criterion name>": { "score": number, "comment": "one-line evaluation (Korean)" } },
   "corrections": [ { "original": "verbatim wrong sentence", "corrected": "fixed sentence", "rationale": "교정 이유 (Korean)" } ],
+  "vocabulary": [ { "original": "plain word/phrase the student used", "upgrade": "higher-band premium vocabulary/collocation", "note": "추천 이유·뉘앙스 (Korean)" } ],
   "general_feedback": "학생용 실전 오답노트 총평 (Korean, 3~5문장, 격려 포함)",
   "tutor_guide": "강사용 AI 코칭 백서 (Korean Markdown). 학생의 weakness_stats 취약 단원과 이번 답변의 실수를 연계 분석하여, 대면 코칭 시 집중 지도 포인트를 ## 제목과 - 불릿으로 구조화"
 }
@@ -101,6 +99,11 @@ export const MOCK_IELTS_FEEDBACK: SubjectiveFeedback = {
       rationale: '"goverment" 철자 오류(government), "make"는 절 구조로 바꿔야 문법적으로 정확합니다. 조건절 if를 활용하세요.',
     },
   ],
+  vocabulary: [
+    { original: 'many people', upgrade: 'a significant proportion of the population', note: '구체적이고 학술적인 표현으로 Lexical Resource 점수를 끌어올립니다.' },
+    { original: 'good',        upgrade: 'beneficial / advantageous',                  note: '평이한 형용사 대신 문맥에 맞는 고급 어휘로 대체하세요.' },
+    { original: 'a lot of',    upgrade: 'a substantial amount of',                    note: '구어체 표현을 격식 있는 academic register로 전환합니다.' },
+  ],
   general_feedback:
     '전반적으로 글의 구조와 입장 전달은 Band 6.5 수준으로 안정적입니다. 다만 주술 일치와 관사·시제 오류가 반복되어 Grammatical Accuracy 점수를 끌어내리고 있어요. 결론부의 collocation(outweigh 등)을 정확히 익히면 7.0 진입이 충분히 가능합니다. 오늘 첨삭한 3개 문장 패턴을 오답노트에 정리하고 유사 문장을 5개씩 다시 써보세요. 꾸준함이 밴드를 올립니다!',
   tutor_guide:
@@ -123,31 +126,11 @@ export async function gradeSubjective(
   answer: string,
   weakStats: WeaknessStat[],
 ): Promise<SubjectiveFeedback> {
-  if (!AI_API_KEY) throw new Error('AI_API_KEY is not configured');
-
-  const res = await fetch(`${AI_BASE_URL}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${AI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: AI_MODEL,
-      max_tokens: 2048,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: buildSystemPrompt(examType) },
-        { role: 'user',   content: buildUserPrompt(examType, questionText, answer, weakStats) },
-      ],
-    }),
+  const raw = await callOpenAI({
+    system: buildSystemPrompt(examType),
+    user:   buildUserPrompt(examType, questionText, answer, weakStats),
+    maxTokens: 2048,
+    json: true,
   });
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`AI API error ${res.status}: ${err}`);
-  }
-
-  const data = await res.json();
-  const raw: string = data.choices[0].message.content.trim();
   return JSON.parse(raw) as SubjectiveFeedback;
 }

@@ -195,10 +195,17 @@ export interface SubjectiveCriterion {
   comment: string;     // 항목별 한 줄 평
 }
 
+export interface VocabularyUpgrade {
+  original: string;   // 학생이 쓴 평이한 표현
+  upgrade:  string;   // 더 높은 밴드의 프리미엄 어휘/표현
+  note:     string;   // 한국어 설명
+}
+
 export interface SubjectiveFeedback {
   overall_score:    number;                            // 최종 예상 Band Score / 등급
   criteria:         Record<string, SubjectiveCriterion>; // 영역별 점수 + 한 줄 평
-  corrections:      SubjectiveCorrection[];            // 문장별 첨삭
+  corrections:      SubjectiveCorrection[];            // 문장별 첨삭 (Grammar Check)
+  vocabulary?:      VocabularyUpgrade[];               // 프리미엄 어휘 추천 (Vocabulary Enhancement)
   general_feedback: string;                            // [학생용] 실전 오답노트 총평 (한국어)
   tutor_guide:      string;                            // [강사용] AI 코칭 백서 (한국어 마크다운)
 }

@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Globe2, FileText, Filter, RotateCcw } from 'lucide-react';
+import { useCurriculumStore } from '@/stores/curriculumStore';
 import type { LanguageExamCard } from '@/types';
 
 /* 국가 코드 → 표시 라벨 */
@@ -42,7 +43,7 @@ function ExamCard({ exam }: { exam: LanguageExamCard }) {
   );
 }
 
-/* ── 단계 드롭다운 ── */
+/* ── 단계 드롭다운 (국가 → 학년/과정 → 목적) ── */
 function Step({
   n, label, value, options, onChange, render, disabled,
 }: {
@@ -70,14 +71,21 @@ function Step({
   );
 }
 
-/* ── 글로벌 교과 4단계 트리 탐색기 (국가 → 학년/과정 → 스트림 → 과목) ── */
+/* ── 글로벌 교과 4단계 트리 탐색기 ──
+   국가 → 학년/과정 → 목적(스트림)은 여기서 선택, 최종 [세부 과목(Course)]은
+   상단 GNB 탭으로 publish되어 양방향 동기화된다. */
 export function CurriculumExplorer({ exams }: { exams: LanguageExamCard[] }) {
+  // country/grade/stream 은 zustand 외 로컬 상태로 충분하지만, GNB 동기화를 위해
+  // course(=activeCourse)는 스토어로 끌어올린다.
+  const activeCourse = useCurriculumStore((s) => s.activeCourse);
+  const setCourses = useCurriculumStore((s) => s.setCourses);
+  const setActiveCourse = useCurriculumStore((s) => s.setActiveCourse);
+
+  // 국가/학년/목적 선택 (로컬)
   const [country, setCountry] = useState('');
   const [grade,   setGrade]   = useState('');
   const [stream,  setStream]  = useState('');
-  const [course,  setCourse]  = useState('');
 
-  // 상위 선택을 반영한 캐스케이딩 옵션
   const countries = useMemo(() => uniq(exams.map((e) => e.country)), [exams]);
   const grades = useMemo(
     () => uniq(exams.filter((e) => !country || e.country === country).map((e) => e.gradeLevel)),
@@ -89,6 +97,7 @@ export function CurriculumExplorer({ exams }: { exams: LanguageExamCard[] }) {
       .map((e) => e.stream)),
     [exams, country, grade],
   );
+  // 현재 국가/학년/목적 조건의 세부 과목 → GNB로 publish
   const courses = useMemo(
     () => uniq(exams
       .filter((e) => (!country || e.country === country) && (!grade || e.gradeLevel === grade) && (!stream || e.stream === stream))
@@ -96,17 +105,22 @@ export function CurriculumExplorer({ exams }: { exams: LanguageExamCard[] }) {
     [exams, country, grade, stream],
   );
 
+  useEffect(() => { setCourses(courses); }, [courses, setCourses]);
+
+  // GNB에서 고른 과목이 현재 옵션에 없으면 무시(전체)
+  const effCourse = activeCourse && courses.includes(activeCourse) ? activeCourse : null;
+
   const filtered = useMemo(
     () => exams.filter((e) =>
       (!country || e.country === country) &&
       (!grade   || e.gradeLevel === grade) &&
       (!stream  || e.stream === stream) &&
-      (!course  || e.course === course)),
-    [exams, country, grade, stream, course],
+      (!effCourse || e.course === effCourse)),
+    [exams, country, grade, stream, effCourse],
   );
 
-  const reset = () => { setCountry(''); setGrade(''); setStream(''); setCourse(''); };
-  const active = country || grade || stream || course;
+  const reset = () => { setCountry(''); setGrade(''); setStream(''); setActiveCourse(null); };
+  const active = country || grade || stream || effCourse;
 
   return (
     <div className="space-y-5">
@@ -116,20 +130,18 @@ export function CurriculumExplorer({ exams }: { exams: LanguageExamCard[] }) {
         <span className="ml-auto text-xs text-slate-400">{filtered.length}개 세트</span>
       </div>
 
-      {/* 4단계 캐스케이딩 필터 */}
+      {/* 3단계 캐스케이딩 (최종 과목은 상단 GNB 탭) */}
       <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
         <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-          <Filter size={13} className="text-indigo-400" /> 국가 → 학년/과정 → 시험 목적 → 과목 순으로 좁혀보세요
+          <Filter size={13} className="text-indigo-400" /> 국가 → 학년/과정 → 시험 목적을 선택하면, 세부 과목이 상단 탭에 나타납니다
         </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Step n={1} label="국가" value={country} options={countries} render={countryLabel}
-                onChange={(v) => { setCountry(v); setGrade(''); setStream(''); setCourse(''); }} />
+                onChange={(v) => { setCountry(v); setGrade(''); setStream(''); setActiveCourse(null); }} />
           <Step n={2} label="학년 / 과정" value={grade} options={grades} disabled={grades.length === 0}
-                onChange={(v) => { setGrade(v); setStream(''); setCourse(''); }} />
+                onChange={(v) => { setGrade(v); setStream(''); setActiveCourse(null); }} />
           <Step n={3} label="시험 목적 / 스트림" value={stream} options={streams} disabled={streams.length === 0}
-                onChange={(v) => { setStream(v); setCourse(''); }} />
-          <Step n={4} label="세부 선택 과목" value={course} options={courses} disabled={courses.length === 0}
-                onChange={setCourse} />
+                onChange={(v) => { setStream(v); setActiveCourse(null); }} />
         </div>
         {active && (
           <button
@@ -150,7 +162,7 @@ export function CurriculumExplorer({ exams }: { exams: LanguageExamCard[] }) {
         <div className="flex flex-col items-center gap-2 rounded-2xl border border-slate-100 bg-white p-10 text-center text-slate-400">
           <FileText size={32} className="text-slate-300" />
           <p className="text-sm font-medium">선택한 조건에 해당하는 모의고사가 없습니다.</p>
-          <p className="text-xs">필터를 조정하거나 초기화해 보세요.</p>
+          <p className="text-xs">상단 과목 탭을 [전체]로 바꾸거나 필터를 초기화해 보세요.</p>
         </div>
       )}
     </div>

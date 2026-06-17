@@ -8,6 +8,7 @@ import {
   LayoutDashboard, ClipboardCheck, Target, NotebookPen, CalendarClock,
 } from 'lucide-react';
 import { DOMAIN_META, DOMAIN_HOME, type DomainMode, type DomainGuideTip } from '@/lib/domain';
+import { useCurriculumStore } from '@/stores/curriculumStore';
 
 /* ────────────────────────────────────────────────────────────────────────────
    학생 화면 크롬(Chrome) 공유 계약
@@ -69,6 +70,47 @@ export function GnbTabs({
           >
             {cat.title}
           </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+/* ── SCHOOL 전용 GNB: 플랫 카테고리 쿼리 대신 CurriculumExplorer가 publish한
+   세부 과목(Course)을 동적 탭으로 노출. 클릭 시 카드 필터(activeCourse) 동기화. ── */
+export function SchoolGnbTabs() {
+  const courses = useCurriculumStore((s) => s.courses);
+  const active = useCurriculumStore((s) => s.activeCourse);
+  const setActiveCourse = useCurriculumStore((s) => s.setActiveCourse);
+
+  if (courses.length === 0) {
+    return (
+      <span className="hidden whitespace-nowrap text-xs font-medium text-slate-400 sm:inline">
+        하단 글로벌 교과 탐색에서 국가·학년·목적을 선택하세요
+      </span>
+    );
+  }
+
+  return (
+    <nav className="flex items-center gap-1 overflow-x-auto">
+      <button
+        onClick={() => setActiveCourse(null)}
+        className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors
+          ${active === null ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
+      >
+        전체
+      </button>
+      {courses.map((c) => {
+        const isActive = c === active;
+        return (
+          <button
+            key={c}
+            onClick={() => setActiveCourse(c)}
+            className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors
+              ${isActive ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-500 hover:bg-indigo-50 hover:text-indigo-600'}`}
+          >
+            {c}
+          </button>
         );
       })}
     </nav>

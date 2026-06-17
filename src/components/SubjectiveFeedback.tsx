@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, Sparkles, PenLine } from 'lucide-react';
+import { ChevronDown, Sparkles, PenLine, Wand2, ArrowRight } from 'lucide-react';
 import type { SubjectiveExamType, SubjectiveFeedback } from '@/types';
 
 interface Props {
@@ -128,6 +128,29 @@ export function SubjectiveFeedback({ feedback, examType = 'IELTS' }: Props) {
           })}
         </div>
       </div>
+
+      {/* ── 프리미엄 어휘 추천 (Vocabulary Enhancement) ── */}
+      {feedback.vocabulary && feedback.vocabulary.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Wand2 className="text-indigo-500" size={18} />
+            <h2 className="text-lg font-bold text-slate-900">프리미엄 어휘 추천</h2>
+            <span className="ml-auto text-xs text-slate-400">{feedback.vocabulary.length}개 업그레이드</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {feedback.vocabulary.map((v, i) => (
+              <div key={i} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-slate-400 line-through decoration-slate-300">{v.original}</span>
+                  <ArrowRight size={14} className="text-indigo-400 shrink-0" />
+                  <span className="font-bold text-emerald-700">{v.upgrade}</span>
+                </div>
+                <p className="mt-2 text-xs leading-5 text-slate-500">{v.note}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── 실전 오답노트 총평 (general_feedback) ── */}
       <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-indigo-50/40 p-6">

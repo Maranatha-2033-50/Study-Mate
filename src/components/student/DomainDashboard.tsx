@@ -8,7 +8,7 @@ import { CurriculumExplorer } from '@/components/student/CurriculumExplorer';
 import { computeStudyBudget } from '@/lib/planner-budget';
 import { DOMAIN_META } from '@/lib/domain';
 import {
-  ClipboardCheck, Target, ChevronRight, FileText, BookOpen, Award, Zap,
+  ClipboardCheck, Target, ChevronRight, FileText, BookOpen, Award, Zap, Headphones, Mic,
 } from 'lucide-react';
 import type {
   CategoryType, LearningCategory, WeaknessStat, LanguageExamCard,
@@ -238,6 +238,26 @@ export async function DomainDashboard({
             ctaClass="border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:shadow-emerald-100 hover:shadow-md"
           />
         </div>
+
+        {/* ── 어학 실전 스튜디오 진입 (LANG 전용) ── */}
+        {siteType === 'LANG' && (
+          <Link
+            href="/student/lang/studio"
+            className="group flex items-center gap-4 rounded-2xl border border-sky-200 bg-gradient-to-br from-sky-50 to-white p-5 shadow-sm transition-all hover:shadow-md"
+          >
+            <span className="flex h-12 w-12 flex-none items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+              <Headphones size={22} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-slate-900">어학 실전 스튜디오</p>
+              <p className="text-sm text-slate-500">IELTS·DELF 리스닝 음원 재생 + 스피킹 녹음 연습 환경</p>
+            </div>
+            <span className="flex items-center gap-1 text-sm font-semibold text-sky-600">
+              <Mic size={15} /> 입장
+              <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+            </span>
+          </Link>
+        )}
 
         {/* ── 실전 모의고사 카탈로그 ──
              SCHOOL: 글로벌 4단계 트리(국가→학년→스트림→과목) 캐스케이딩 탐색기
