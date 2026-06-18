@@ -1,11 +1,18 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Mic, Square, Pause, Play, Trash2, CheckCircle2, Send } from 'lucide-react';
+import { Mic, Square, Pause, Play, Trash2, CheckCircle2, Send, Loader2, Award } from 'lucide-react';
+import type { SpeakingFeedback } from '@/types';
 
 type Status = 'idle' | 'recording' | 'paused' | 'stopped';
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+const METRIC_META: { key: keyof SpeakingFeedback['metrics']; label: string; bar: string }[] = [
+  { key: 'accuracy', label: '발음 정확도', bar: 'bg-emerald-500' },
+  { key: 'fluency',  label: '유창성',      bar: 'bg-indigo-500' },
+  { key: 'prosody',  label: '완급·억양',   bar: 'bg-violet-500' },
+];
 
 /* IELTS/DELF 스피킹 시험장 — MediaRecorder 기반 녹음기 */
 export function SpeakingRecorder() {
@@ -19,7 +26,9 @@ export function SpeakingRecorder() {
   const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
-  const [packaged, setPackaged] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [feedback, setFeedback] = useState<SpeakingFeedback | null>(null);
+  const [submitError, setSubmitError] = useState('');
 
   const stopTimer = () => { if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; } };
   const stopStream = () => { streamRef.current?.getTracks().forEach((t) => t.stop()); streamRef.current = null; };
@@ -52,7 +61,7 @@ export function SpeakingRecorder() {
       };
       rec.start();
       recRef.current = rec;
-      setBlob(null); setPackaged(false); setElapsed(0); setStatus('recording');
+      setBlob(null); setFeedback(null); setSubmitError(''); setElapsed(0); setStatus('recording');
       timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
     } catch {
       setError('마이크 접근이 거부되었거나 사용할 수 없습니다. 브라우저 권한을 확인하세요.');
@@ -68,17 +77,27 @@ export function SpeakingRecorder() {
   const stop = () => { recRef.current?.stop(); stopTimer(); setStatus('stopped'); };
   const reset = () => {
     if (url) URL.revokeObjectURL(url);
-    setBlob(null); setUrl(null); setElapsed(0); setPackaged(false); setStatus('idle');
+    setBlob(null); setUrl(null); setElapsed(0); setFeedback(null); setSubmitError(''); setStatus('idle');
   };
 
-  // 녹음 완료 → 백엔드 전송용 패키징 (FormData 준비)
-  const packageForUpload = () => {
-    if (!blob) return;
-    const form = new FormData();
-    form.append('audio', blob, `speaking-${elapsed}s.webm`);
-    form.append('duration', String(elapsed));
-    // TODO: 백엔드 스피킹 채점 라우트 연결 시 fetch('/api/ai/speaking', { method:'POST', body: form })
-    setPackaged(true);
+  // 녹음 완료 → /api/ai/speaking 으로 음원 전송 후 IELTS 밴드 리포트 수신
+  const submit = async () => {
+    if (!blob || analyzing) return;
+    setAnalyzing(true);
+    setSubmitError('');
+    try {
+      const form = new FormData();
+      form.append('audio', blob, `speaking-${elapsed}s.webm`);
+      form.append('duration', String(elapsed));
+      const res = await fetch('/api/ai/speaking', { method: 'POST', body: form });
+      if (!res.ok) throw new Error('채점 요청 실패');
+      const { feedback: fb } = (await res.json()) as { feedback: SpeakingFeedback };
+      setFeedback(fb);
+    } catch {
+      setSubmitError('AI 채점 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   return (
@@ -145,23 +164,113 @@ export function SpeakingRecorder() {
 
       {error && <p className="mt-3 text-xs text-rose-500">{error}</p>}
 
-      {/* 녹음 결과 미리듣기 + 전송 준비 */}
-      {url && (
+      {/* 녹음 결과 미리듣기 + AI 채점 제출 */}
+      {url && !feedback && (
         <div className="mt-5 space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <audio src={url} controls className="w-full" />
           <button
-            onClick={packageForUpload}
-            disabled={packaged}
+            onClick={submit}
+            disabled={analyzing}
             className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
           >
-            <Send size={15} /> {packaged ? '전송 준비 완료 ✓' : '제출 준비 (백엔드 전송 패키징)'}
+            <Send size={15} /> AI 발음·유창성 채점 받기
           </button>
-          {packaged && (
-            <p className="text-xs text-emerald-600">
-              음원 파일이 FormData로 패키징되었습니다 (스피킹 채점 라우트 연결 시 즉시 전송).
-            </p>
-          )}
+          {submitError && <p className="text-xs text-rose-500">{submitError}</p>}
+        </div>
+      )}
+
+      {/* 음성 분석 프로그레스 스켈레톤 (대용량 업로드 + AI 구동 중 이탈 방지) */}
+      {analyzing && (
+        <div className="mt-5 rounded-xl border border-indigo-100 bg-indigo-50/60 p-5">
+          <p className="flex items-center gap-2 text-sm font-bold text-indigo-700">
+            <Loader2 size={16} className="animate-spin" />
+            AI가 당신의 발음과 억양을 정밀 분석 중입니다 (약 10초 소요)…
+          </p>
+          <div className="mt-4 space-y-2.5">
+            {METRIC_META.map((m) => (
+              <div key={m.key} className="space-y-1">
+                <div className="h-2.5 w-24 animate-pulse rounded bg-indigo-200/70" />
+                <div className="h-2 w-full animate-pulse rounded-full bg-slate-200" />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* IELTS 스피킹 밴드 리포트 카드 */}
+      {feedback && (
+        <div className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          {/* 밴드 헤더 */}
+          <div className="flex items-center gap-4">
+            <span className="flex h-16 w-16 flex-none flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 text-white">
+              <Award size={16} />
+              <span className="text-xl font-black leading-none">{feedback.band_score}</span>
+            </span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-indigo-500">IELTS Speaking</p>
+              <p className="text-lg font-extrabold text-slate-900">예상 밴드 {feedback.band_score}</p>
+            </div>
+          </div>
+
+          {/* 발음 지표 바 */}
+          <div className="space-y-2.5">
+            {METRIC_META.map((m) => {
+              const v = feedback.metrics[m.key];
+              return (
+                <div key={m.key}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="font-medium text-slate-600">{m.label}</span>
+                    <span className="font-bold text-slate-500">{v}</span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className={`h-2 rounded-full ${m.bar}`} style={{ width: `${Math.max(0, Math.min(100, v))}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 영역별 평가 */}
+          <div className="space-y-1.5">
+            {Object.entries(feedback.criteria).map(([name, c]) => (
+              <div key={name} className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2">
+                <span className="flex-none rounded-md bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">{c.score}</span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-700">{name}</p>
+                  <p className="text-xs text-slate-500">{c.comment}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 강점 / 개선점 */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+              <p className="mb-1.5 text-xs font-bold text-emerald-700">강점</p>
+              <ul className="space-y-1 text-xs text-emerald-800">
+                {feedback.strengths.map((s, i) => <li key={i}>• {s}</li>)}
+              </ul>
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+              <p className="mb-1.5 text-xs font-bold text-amber-700">개선점</p>
+              <ul className="space-y-1 text-xs text-amber-800">
+                {feedback.improvements.map((s, i) => <li key={i}>• {s}</li>)}
+              </ul>
+            </div>
+          </div>
+
+          {/* 총평 */}
+          <div className="rounded-xl bg-slate-900 p-4 text-sm leading-relaxed text-slate-100">
+            {feedback.general_feedback}
+          </div>
+
+          <button
+            onClick={reset}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            <Trash2 size={16} /> 새로 녹음하기
+          </button>
         </div>
       )}
     </div>

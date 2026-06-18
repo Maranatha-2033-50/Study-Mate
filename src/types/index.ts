@@ -57,6 +57,7 @@ export interface UniversalQuestion {
   difficulty: Difficulty;
   explanation?: string | null;   // 학생용 한글 해설
   passage?: string | null;       // 좌측 고정 지문 (동일 세트 전 문항 공유)
+  audio_url?: string | null;     // 리스닝 음원(mp3) — Supabase Storage 공개 URL (015 마이그레이션)
   created_at: string;
   // joined
   learning_chapters?: LearningChapter;
@@ -241,6 +242,25 @@ export interface SubjectiveFeedback {
   vocabulary?:      VocabularyUpgrade[];               // 프리미엄 어휘 추천 (Vocabulary Enhancement)
   general_feedback: string;                            // [학생용] 실전 오답노트 총평 (한국어)
   tutor_guide:      string;                            // [강사용] AI 코칭 백서 (한국어 마크다운)
+}
+
+// ─── Speaking 발음/유창성 채점 (IELTS Speaking) ───────────────────────────────
+
+/** Azure Speech / Speechace 발음평가 엔진이 추출하는 기술 지표 (각 0–100) */
+export interface PronunciationMetrics {
+  accuracy: number;   // 발음 정확도 (Accuracy)
+  fluency:  number;   // 유창성 (Fluency)
+  prosody:  number;   // 완급 조절·억양 (Prosody)
+}
+
+/** /api/ai/speaking 응답 — IELTS 스피킹 밴드 + 원어민 피드백 리포트 카드 */
+export interface SpeakingFeedback {
+  band_score:       number;                              // IELTS Speaking band 0–9 (.5 단위)
+  metrics:          PronunciationMetrics;                // 엔진 기술 지표 (권위값)
+  criteria:         Record<string, SubjectiveCriterion>; // 영역별 점수 + 한 줄 평 (Fluency/Pronunciation 등)
+  strengths:        string[];                            // 강점 (한국어)
+  improvements:     string[];                            // 개선점 (한국어)
+  general_feedback: string;                              // 학생용 총평 (한국어)
 }
 
 // ─── 1:1 튜터 Q&A (오답노트 연동 쪽지방) — 011 마이그레이션 ───────────────────

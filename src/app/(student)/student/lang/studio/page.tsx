@@ -8,6 +8,9 @@ import { SpeakingRecorder } from '@/components/student/SpeakingRecorder';
 
 export default function LangStudioPage() {
   const [tab, setTab] = useState<'listening' | 'speaking'>('listening');
+  // 리스닝 데모 음원 — Supabase Storage 공개 mp3 URL 등을 env 로 주입(미설정 시 플레이어 비활성 안내).
+  // 문항 구동형 리스닝 도입 시 question.audio_url 을 src 로 바인딩하면 된다.
+  const listeningSrc = process.env.NEXT_PUBLIC_LISTENING_SAMPLE_URL || undefined;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-2 py-2">
@@ -46,7 +49,7 @@ export default function LangStudioPage() {
         })}
       </div>
 
-      {tab === 'listening' ? <AudioPlayer title="IELTS Listening — Section 1" /> : <SpeakingRecorder />}
+      {tab === 'listening' ? <AudioPlayer title="IELTS Listening — Section 1" src={listeningSrc} /> : <SpeakingRecorder />}
     </div>
   );
 }
