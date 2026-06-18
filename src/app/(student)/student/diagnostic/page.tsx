@@ -1,27 +1,53 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { DiagnosticTestRoom } from '@/components/student/DiagnosticTestRoom';
 import { StudentShell } from '@/components/layout/StudentChrome';
 import { DOMAIN_HOME, readDomainCookieClient } from '@/lib/domain';
-import type { StudySession, UniversalQuestion } from '@/types';
+import type { StudySession, ClientQuestion } from '@/types';
 
-type Phase = 'CONFIG' | 'TESTING' | 'DONE';
+type Phase = 'CONFIG' | 'TESTING' | 'DONE' | 'PREVIEW';
+
+// 응시용 안전 컬럼 — answer/explanation 은 절대 클라이언트로 내려보내지 않는다(블라인드 채점).
+const SAFE_QUESTION_COLS =
+  'id, chapter_id, question_type, question_text, options, difficulty, passage, created_at, learning_chapters!inner(category_id, level_1, level_2)';
+
+// AI 일시 실패 시 메모리상 일회성 미리보기(채점 불가) 문항
+interface PreviewQuestion {
+  question_text: string;
+  options:       Record<string, string> | null;
+  difficulty?:   string;
+}
 
 export default function DiagnosticPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const categoryId   = searchParams.get('category') ?? '';
   const chapterId    = searchParams.get('chapter') ?? '';   // 모의고사: 특정 단원만 출제
+  const previewFlag  = searchParams.get('preview');         // AI 일시 실패 미리보기 진입
   const supabase     = createClient();
 
   const [phase,     setPhase]     = useState<Phase>('CONFIG');
   const [count,     setCount]     = useState(20);
   const [session,   setSession]   = useState<StudySession | null>(null);
-  const [questions, setQuestions] = useState<UniversalQuestion[]>([]);
+  const [questions, setQuestions] = useState<ClientQuestion[]>([]);
+  const [preview,   setPreview]   = useState<PreviewQuestion[]>([]);
   const [loading,   setLoading]   = useState(false);
+
+  // 미리보기 진입: sessionStorage 에 적재된 Mock 문항을 1회 읽고 즉시 폐기(일회성).
+  useEffect(() => {
+    if (previewFlag !== '1') return;
+    try {
+      const raw = sessionStorage.getItem('diag_preview');
+      if (raw) {
+        setPreview(JSON.parse(raw) as PreviewQuestion[]);
+        setPhase('PREVIEW');
+      }
+      sessionStorage.removeItem('diag_preview');
+    } catch { /* 손상된 페이로드는 무시하고 CONFIG 로 폴백 */ }
+  }, [previewFlag]);
 
   const startSession = async () => {
     setLoading(true);
@@ -45,7 +71,7 @@ export default function DiagnosticPage() {
     // 모의고사(chapter 지정): 해당 단원 문항 전체 / 일반 진단: 카테고리 객관식 문항 표본
     const base = supabase
       .from('universal_questions')
-      .select('*, learning_chapters!inner(category_id, level_1, level_2)');
+      .select(SAFE_QUESTION_COLS);
     const query = chapterId
       ? base.eq('chapter_id', chapterId)
       : base.eq('learning_chapters.category_id', categoryId).neq('question_type', 'ESSAY').limit(count);
@@ -58,10 +84,61 @@ export default function DiagnosticPage() {
     }
 
     setSession(sess);
-    setQuestions(qs);
+    setQuestions(qs as unknown as ClientQuestion[]);
     setPhase('TESTING');
     setLoading(false);
   };
+
+  if (phase === 'PREVIEW') {
+    return (
+      <StudentShell>
+        <div className="max-w-2xl mx-auto px-6 py-12 space-y-6">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <p className="text-sm font-bold text-amber-800">AI 일시 실패 · 미리보기 (채점 불가)</p>
+            <p className="mt-1 text-xs text-amber-700">
+              실시간 출제 엔진이 응답하지 않아 표본 문항을 임시로 보여드립니다. 이 문항은 저장되지 않으며 채점되지 않습니다.
+              잠시 후 다시 시도하면 정식 문제로 출제됩니다.
+            </p>
+          </div>
+
+          {preview.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-400">표시할 미리보기 문항이 없습니다.</p>
+          ) : (
+            <ol className="space-y-4">
+              {preview.map((q, i) => (
+                <li key={i} className="rounded-xl border border-gray-200 bg-white p-5">
+                  <p className="text-sm font-semibold text-gray-800 mb-3">
+                    <span className="text-gray-400 mr-1">Q{i + 1}.</span>{q.question_text}
+                  </p>
+                  {q.options && (
+                    <ul className="space-y-1.5">
+                      {Object.entries(q.options).map(([key, val]) => (
+                        <li key={key} className="flex items-start gap-2 text-sm text-gray-600">
+                          <span className="w-5 h-5 flex-none rounded bg-gray-100 text-xs font-bold flex items-center justify-center mt-0.5">{key}</span>
+                          <span>{val}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+
+          <button
+            onClick={() => {
+              const domain = readDomainCookieClient();
+              const home = domain ? DOMAIN_HOME[domain] : '/';
+              router.push(home);
+            }}
+            className="w-full py-3 bg-gray-900 text-white rounded-xl text-sm font-semibold hover:bg-gray-800"
+          >
+            돌아가기
+          </button>
+        </div>
+      </StudentShell>
+    );
+  }
 
   if (phase === 'CONFIG') {
     return (

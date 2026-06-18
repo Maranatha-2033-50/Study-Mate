@@ -8,7 +8,7 @@ import { useTimer } from '@/hooks/useTimer';
 import { useSessionStore } from '@/stores/sessionStore';
 import { CheckCircle2, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { difficultyStyle } from '@/lib/difficulty';
-import type { UniversalQuestion, StudySession } from '@/types';
+import type { ClientQuestion, StudySession, DiagnosticReviewItem, DiagnosticSubmitResult } from '@/types';
 
 // ── 마크다운 렌더러 ────────────────────────────────────────
 function MD({ children }: { children: string }) {
@@ -108,7 +108,7 @@ function LiveTimer({ questionId, getElapsed }: { questionId: string; getElapsed:
 // ── 메인 컴포넌트 ─────────────────────────────────────────
 interface DiagnosticTestRoomProps {
   session: StudySession;
-  questions: UniversalQuestion[];
+  questions: ClientQuestion[];
   onComplete: () => void;
 }
 
@@ -123,6 +123,8 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
   const [submitted,    setSubmitted]     = useState(false);
   const [result,       setResult]        = useState<{ correct: number; total: number } | null>(null);
   const [isReviewMode, setIsReviewMode]  = useState(false);   // 제출 후 오답노트 리뷰 모드
+  // 정답/해설은 제출 후 서버 응답으로만 채워진다(응시 중에는 클라이언트에 정답이 없다).
+  const [review,       setReview]        = useState<Record<string, DiagnosticReviewItem>>({});
 
   const questionIds = questions.map((q) => q.id);
   const { getElapsed, switchQuestion, pause } = useTimer(questionIds);
@@ -175,13 +177,13 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
     : '';
   const optionKeys = currentQ?.options ? Object.keys(currentQ.options) : [];
 
-  // 정오답 판정 — /api/grade 와 동일 규칙(trim + 대문자)
+  // 정오답 판정 — 서버(/api/diagnostic/submit)가 권위 채점한 결과만 사용
   const reviewCorrect = useCallback(
-    (q: UniversalQuestion) =>
-      (answers[q.id] ?? '').trim().toUpperCase() === (q.answer ?? '').trim().toUpperCase(),
-    [answers],
+    (q: ClientQuestion) => review[q.id]?.is_correct ?? false,
+    [review],
   );
-  const currentCorrect = currentQ ? reviewCorrect(currentQ) : false;
+  const currentReview = currentQ ? review[currentQ.id] : undefined;
+  const currentCorrect = currentReview?.is_correct ?? false;
 
   const selectAnswer = useCallback((key: string) => {
     setAnswers((prev) => ({ ...prev, [currentQ.id]: key }));
@@ -204,15 +206,16 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
         user_answer:  answers[q.id] ?? '',
         elapsed_time: getElapsed(q.id),
       }));
-      const res = await fetch('/api/grade', {
+      const res = await fetch('/api/diagnostic/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ session_id: session.id, attempts: payload }),
       });
       if (!res.ok) throw new Error('채점 실패');
-      const { correct_count, total } = await res.json();
+      const data: DiagnosticSubmitResult = await res.json();
       clearDraft(session.id);
-      setResult({ correct: correct_count, total });
+      setReview(Object.fromEntries(data.review.map((r) => [r.question_id, r])));
+      setResult({ correct: data.correct_count, total: data.total });
       setSubmitted(true);
       setIsReviewMode(true);   // 점수만 띄우지 않고 문항별 오답노트 리뷰로 전환
       setCurrentIdx(0);
@@ -348,7 +351,7 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
 
                 // ── 리뷰 모드: 정답=초록 / 내가 고른 오답=빨강 ──
                 if (isReviewMode) {
-                  const isCorrectOpt = key.trim().toUpperCase() === (currentQ.answer ?? '').trim().toUpperCase();
+                  const isCorrectOpt = key.trim().toUpperCase() === (currentReview?.correct_answer ?? '').trim().toUpperCase();
                   const isWrongPick  = selected && !isCorrectOpt;
                   return (
                     <div key={key}
@@ -403,7 +406,7 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
               {!currentCorrect && (
                 <div className="px-4 py-3 rounded-xl border border-emerald-300 bg-emerald-50 text-sm">
                   <p className="text-xs text-slate-500 mb-0.5">정답</p>
-                  <p className="font-medium text-emerald-800">{currentQ.answer}</p>
+                  <p className="font-medium text-emerald-800">{currentReview?.correct_answer}</p>
                 </div>
               )}
             </div>
@@ -418,13 +421,13 @@ export function DiagnosticTestRoom({ session, questions, onComplete }: Diagnosti
             />
           )}
 
-          {/* ── 한글 해설 판독기 (리뷰 모드) ── */}
-          {isReviewMode && currentQ.explanation && (
+          {/* ── 한글 해설 판독기 (리뷰 모드) — 해설도 제출 후 서버 응답에서만 ── */}
+          {isReviewMode && currentReview?.explanation && (
             <div className="mt-6 rounded-xl border border-indigo-200 bg-indigo-50/70 p-5">
               <p className="flex items-center gap-1.5 text-sm font-bold text-indigo-700 mb-2">
                 📘 해설
               </p>
-              <MD>{currentQ.explanation.replace(/\\n/g, '\n')}</MD>
+              <MD>{currentReview.explanation.replace(/\\n/g, '\n')}</MD>
             </div>
           )}
         </div>

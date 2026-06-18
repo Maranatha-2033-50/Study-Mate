@@ -4,7 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import { callSolar, callOpenAI } from '@/lib/ai/clients';
 
 /* 온디맨드 AI 문제 생성 엔진 — 무문항 단원에 실시간 출제 + Supabase 영속화(하이브리드 캐시).
-   국내(KR)→Upstage Solar, 글로벌(CA/UK)→OpenAI. 서비스 롤로 RLS 우회 insert. */
+   국내(KR)→Upstage Solar, 글로벌(CA/UK)→OpenAI. 서비스 롤로 RLS 우회 insert.
+   ⛔ 데이터 청정구역: 실제 LLM이 생성한 오리지널 문항만 DB에 영속화한다.
+      AI 키 미설정/연동 실패로 Mock 폴백이 발동하면 카테고리·챕터·문항 어느 것도 DB에 쓰지 않고,
+      메모리상 일회성 미리보기(채점 불가)로만 클라이언트에 반환한다. */
 
 interface Body { country: string; grade: string; stream: string; course: string; unit: string }
 interface GenQ { question_text: string; options: { A: string; B: string; C: string; D: string }; answer: string; explanation: string; difficulty?: string }
@@ -61,30 +64,58 @@ export async function POST(req: NextRequest) {
 
   const db = admin();
 
-  // 1. SCHOOL 호스트 카테고리 확보
-  let { data: cat } = await db.from('learning_categories').select('id').eq('type', 'SCHOOL').order('created_at').limit(1).maybeSingle();
-  if (!cat) {
-    const ins = await db.from('learning_categories').insert({ type: 'SCHOOL', title: '글로벌 교과' }).select('id').single();
-    cat = ins.data;
-  }
-  if (!cat) return NextResponse.json({ error: 'category resolve failed' }, { status: 500 });
-  const categoryId = cat.id as string;
+  // 1. 기존 SCHOOL 호스트 카테고리 조회 — 없으면 아직 만들지 않는다(실제 영속화 시점까지 보류).
+  const { data: cat } = await db.from('learning_categories')
+    .select('id').eq('type', 'SCHOOL').order('created_at').limit(1).maybeSingle();
+  const existingCategoryId = cat?.id as string | undefined;
 
-  // 2. 단원 시그니처로 기존 챕터 조회 (하이브리드 캐시)
-  const { data: existing } = await db.from('learning_chapters')
-    .select('id')
-    .eq('category_id', categoryId).eq('country', b.country).eq('grade_level', b.grade)
-    .eq('stream', b.stream).eq('course', b.course).eq('level_2', b.unit)
-    .maybeSingle();
-
-  let chapterId = existing?.id as string | undefined;
-
-  if (chapterId) {
-    const { count } = await db.from('universal_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chapterId);
-    if ((count ?? 0) > 0) {
-      return NextResponse.json({ category_id: categoryId, chapter_id: chapterId, cached: true, count });
+  // 2. 캐시 히트: 이미 영속화된(=실제 AI) 문항이 있으면 그대로 반환.
+  let chapterId: string | undefined;
+  if (existingCategoryId) {
+    const { data: existing } = await db.from('learning_chapters')
+      .select('id')
+      .eq('category_id', existingCategoryId).eq('country', b.country).eq('grade_level', b.grade)
+      .eq('stream', b.stream).eq('course', b.course).eq('level_2', b.unit)
+      .maybeSingle();
+    chapterId = existing?.id as string | undefined;
+    if (chapterId) {
+      const { count } = await db.from('universal_questions').select('id', { count: 'exact', head: true }).eq('chapter_id', chapterId);
+      if ((count ?? 0) > 0) {
+        return NextResponse.json({ category_id: existingCategoryId, chapter_id: chapterId, cached: true, count });
+      }
     }
-  } else {
+  }
+
+  // 3. AI 생성 (KR→Solar / 그 외→OpenAI).
+  const { system, user: userPrompt, isKR } = buildPrompt(b);
+  let raw: string | null = null;
+  try {
+    raw = await (isKR ? callSolar : callOpenAI)({ system, user: userPrompt, json: true, maxTokens: 3000 });
+  } catch { raw = null; }
+  const generated = parse(raw);
+
+  // 4. ⛔ Mock 폴백: AI 실패 시 DB에 일절 쓰지 않고(카테고리/챕터/문항 모두), 정답을 뺀
+  //    일회성 미리보기 문항만 반환한다(채점 불가). 클라이언트는 sessionStorage 로 1회 표시 후 폐기.
+  if (!generated) {
+    return NextResponse.json({
+      mock: true,
+      persisted: false,
+      questions: mock(b).map((q) => ({
+        question_text: q.question_text,
+        options:       q.options,
+        difficulty:    q.difficulty ?? '중',
+      })),
+    });
+  }
+
+  // 5. ✅ 실제 AI 성공분만 영속화 (서비스 롤) — 이 시점에만 카테고리/챕터를 생성한다.
+  let categoryId = existingCategoryId;
+  if (!categoryId) {
+    const ins = await db.from('learning_categories').insert({ type: 'SCHOOL', title: '글로벌 교과' }).select('id').single();
+    if (!ins.data) return NextResponse.json({ error: 'category resolve failed' }, { status: 500 });
+    categoryId = ins.data.id as string;
+  }
+  if (!chapterId) {
     const ins = await db.from('learning_chapters').insert({
       category_id: categoryId, level_1: b.course, level_2: b.unit,
       country: b.country, grade_level: b.grade, stream: b.stream, course: b.course,
@@ -93,18 +124,7 @@ export async function POST(req: NextRequest) {
     chapterId = ins.data.id as string;
   }
 
-  // 3. AI 생성 (KR→Solar / 그 외→OpenAI), 실패 시 표본 폴백
-  const { system, user: userPrompt, isKR } = buildPrompt(b);
-  let raw: string | null = null;
-  try {
-    raw = await (isKR ? callSolar : callOpenAI)({ system, user: userPrompt, json: true, maxTokens: 3000 });
-  } catch { raw = null; }
-
-  const questions = parse(raw) ?? mock(b);
-  const usedMock = !parse(raw);
-
-  // 4. 영속화 (서비스 롤)
-  const rows = questions.map((q) => ({
+  const rows = generated.map((q) => ({
     chapter_id:    chapterId!,
     question_type: 'MULTIPLE_4',
     question_text: q.question_text,
@@ -116,5 +136,5 @@ export async function POST(req: NextRequest) {
   const { error: insErr } = await db.from('universal_questions').insert(rows);
   if (insErr) return NextResponse.json({ error: `persist failed: ${insErr.message}` }, { status: 500 });
 
-  return NextResponse.json({ category_id: categoryId, chapter_id: chapterId, cached: false, count: rows.length, mock: usedMock });
+  return NextResponse.json({ category_id: categoryId, chapter_id: chapterId, cached: false, count: rows.length, mock: false });
 }

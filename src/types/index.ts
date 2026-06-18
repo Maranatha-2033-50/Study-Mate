@@ -9,6 +9,7 @@ export interface Profile {
   phone?: string | null;
   subscription_status?: SubscriptionStatus;   // 'FREE_TRIAL' | 'PREMIUM' (010 마이그레이션)
   interest_categories?: string[];             // learning_categories.id[] (010 마이그레이션)
+  is_admin?: boolean;                          // 전역 통계판 접근 권한 (014 마이그레이션)
   created_at: string;
 }
 
@@ -59,6 +60,38 @@ export interface UniversalQuestion {
   created_at: string;
   // joined
   learning_chapters?: LearningChapter;
+}
+
+// 클라이언트로 내려보내는 안전한 문항 형태 — answer/explanation 컬럼은 서버에만 머문다.
+// 진단/모의고사 응시 화면은 이 타입만 받으며, 정답·해설은 채점 제출 후 서버 응답으로만 노출된다.
+export type ClientQuestion = Omit<UniversalQuestion, 'answer' | 'explanation'>;
+
+// 진단 채점 제출 후 서버가 돌려주는 문항별 리뷰(오답노트) 항목
+export interface DiagnosticReviewItem {
+  question_id:    string;
+  user_answer:    string;
+  is_correct:     boolean;
+  correct_answer: string;        // 제출 후에만 공개
+  explanation:    string | null; // 제출 후에만 공개
+}
+
+// 단원별 취약점 리포트 항목
+export interface DiagnosticWeakness {
+  chapter_id: string;
+  level_1:    string;
+  level_2:    string;
+  total:      number;
+  correct:    number;
+  accuracy:   number;   // 0–100
+}
+
+// /api/diagnostic/submit 응답 — 점수 + 리뷰 + 취약점 리포트(블라인드 채점 결과)
+export interface DiagnosticSubmitResult {
+  correct_count: number;
+  total:         number;
+  accuracy_rate: number;        // 0–100
+  review:        DiagnosticReviewItem[];
+  weakness:      DiagnosticWeakness[];
 }
 
 export interface LanguageExamCard {

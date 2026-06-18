@@ -108,7 +108,14 @@ export function SchoolDashboard({ stats, sessions, plans, chapterMeta, profileNa
         body: JSON.stringify({ country, grade, stream, course, unit }),
       });
       const data = await res.json();
-      if (!res.ok || !data.chapter_id) throw new Error(data.error ?? '생성 실패');
+      if (!res.ok) throw new Error(data.error ?? '생성 실패');
+      // AI 일시 실패(Mock): DB에 저장되지 않은 표본을 sessionStorage 로 넘겨 일회성 미리보기로만 표시.
+      if (data.mock) {
+        sessionStorage.setItem('diag_preview', JSON.stringify(data.questions ?? []));
+        router.push('/student/diagnostic?preview=1');
+        return;
+      }
+      if (!data.chapter_id) throw new Error('생성 실패');
       router.push(`/student/diagnostic?category=${data.category_id}&chapter=${data.chapter_id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'AI 출제 중 오류가 발생했습니다.');

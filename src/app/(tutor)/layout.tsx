@@ -10,11 +10,18 @@ export default async function TutorLayout({ children }: { children: React.ReactN
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, name')
+    .select('role, name, is_admin')
     .eq('id', user.id)
     .single();
 
   if (profile?.role !== 'tutor') redirect('/');
+
+  // 통계판은 관리자만 — 비관리자 교사에게는 내비게이션 링크 자체를 숨긴다(페이지단 가드와 이중 방어).
+  const navItems = [
+    { href: '/tutor/dashboard', label: '학생 리포트' },
+    { href: '/tutor/qna',       label: 'Q&A 수신함' },
+    ...(profile?.is_admin ? [{ href: '/tutor/analytics', label: '통계' }] : []),
+  ];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -24,11 +31,7 @@ export default async function TutorLayout({ children }: { children: React.ReactN
             스터디메이트 <span className="text-xs font-normal text-gray-400 ml-1">강사 모드</span>
           </span>
           <nav className="flex items-center gap-1">
-            {[
-              { href: '/tutor/dashboard', label: '학생 리포트' },
-              { href: '/tutor/qna',       label: 'Q&A 수신함' },
-              { href: '/tutor/analytics', label: '통계' },
-            ].map((m) => (
+            {navItems.map((m) => (
               <Link
                 key={m.href}
                 href={m.href}

@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
 import { BarChart3, Flame, Layers } from 'lucide-react';
 import type { CategoryType, WrongContext } from '@/types';
 
@@ -23,6 +25,14 @@ const DOMAIN_META: Record<CategoryType, { label: string; bar: string; chip: stri
 const clean = (s: string) => s.replace(/\\n/g, ' ').replace(/[#*`>]/g, '').trim();
 
 export default async function TutorAnalyticsPage() {
+  // 관리자 게이팅: 로그인 유저의 is_admin 이 참일 때만 전역 통계판 진입 허용.
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+  const { data: profile } = await supabase
+    .from('profiles').select('is_admin').eq('id', user.id).single();
+  if (!profile?.is_admin) redirect('/');
+
   const admin = adminClient();
 
   const [{ data: tqRaw }, { data: catsRaw }] = await Promise.all([
