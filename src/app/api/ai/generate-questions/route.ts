@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdmin } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { callSolar, callOpenAI } from '@/lib/ai/clients';
+import { checkAndConsumeToken } from '@/lib/token-guard';
 
 /* 온디맨드 AI 문제 생성 엔진 — 무문항 단원에 실시간 출제 + Supabase 영속화(하이브리드 캐시).
    국내(KR)→Upstage Solar, 글로벌(CA/UK)→OpenAI. 서비스 롤로 RLS 우회 insert.
@@ -84,6 +85,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ category_id: existingCategoryId, chapter_id: chapterId, cached: true, count });
       }
     }
+  }
+
+  // [비용 방어 밸브] 실제 LLM 출제 직전에만 토큰 차감 (캐시 히트는 차감 없이 통과).
+  const guard = await checkAndConsumeToken(supabase, user.id, 3000);
+  if (!guard.ok) {
+    return NextResponse.json({ error: 'UPGRADE_REQUIRED', reason: guard.reason }, { status: 402 });
   }
 
   // 3. AI 생성 (KR→Solar / 그 외→OpenAI).

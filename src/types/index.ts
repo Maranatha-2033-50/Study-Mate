@@ -7,9 +7,10 @@ export interface Profile {
   role: UserRole;
   name: string;
   phone?: string | null;
-  subscription_status?: SubscriptionStatus;   // 'FREE_TRIAL' | 'PREMIUM' (010 마이그레이션)
+  subscription_status?: SubscriptionStatus;   // 'BASIC' | 'PLUS' | 'PREMIUM' (016 마이그레이션)
   interest_categories?: string[];             // learning_categories.id[] (010 마이그레이션)
   is_admin?: boolean;                          // 전역 통계판 접근 권한 (014 마이그레이션)
+  monthly_tokens_left?: number | null;         // 월간 LLM 크레딧 잔량 — 비용 방어 밸브 (016 마이그레이션)
   created_at: string;
 }
 
@@ -162,11 +163,13 @@ export interface CategoryAccuracy {
   total_attempts: number;
 }
 
-// ─── Monetization / Paywall (향후 프리미엄 결제 퍼널용 스캐폴딩) ────────────────
-//  현재 DB(profiles)에는 컬럼이 없으며, 결제 퍼널 개통 시 컬럼 추가 후 사용한다.
-//  - subscription_status: 무료체험(FREE_TRIAL) vs 유료(PREMIUM)
-//  - is_plan_locked: 무료 사용자의 추가 플랜 생성을 잠글지 여부(결제 유도 트리거)
-export type SubscriptionStatus = 'FREE_TRIAL' | 'PREMIUM';
+// ─── Monetization / Paywall (3개 등급 과금 가드 — Phase 13) ─────────────────────
+//  profiles.subscription_status (016 마이그레이션, CHECK IN ('BASIC','PLUS','PREMIUM')):
+//  - BASIC   : 무료 — 최초 진단 1회 + AI 플래너 + 취약 훈련방 1회권
+//  - PLUS    : 실전 모의고사·무한 훈련방 무제한 (1:1 과외 툴바 차단)
+//  - PREMIUM : 모든 AI 피처 무제한 + 1:1 튜터 Q&A 개방
+//  등급별 권한·한도 매핑과 게이트 판정은 src/lib/subscription.ts 단일 출처를 따른다.
+export type SubscriptionStatus = 'BASIC' | 'PLUS' | 'PREMIUM';
 
 // ─── AI Planner (Interactive Precision Planner — Study Budget 기반) ─────────────
 

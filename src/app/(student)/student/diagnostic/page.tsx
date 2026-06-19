@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { DiagnosticTestRoom } from '@/components/student/DiagnosticTestRoom';
 import { StudentShell } from '@/components/layout/StudentChrome';
+import { PaywallModal } from '@/components/student/PaywallModal';
 import { DOMAIN_HOME, readDomainCookieClient } from '@/lib/domain';
+import { normalizeTier, canStartDiagnostic } from '@/lib/subscription';
 import type { StudySession, ClientQuestion } from '@/types';
 
 type Phase = 'CONFIG' | 'TESTING' | 'DONE' | 'PREVIEW';
@@ -35,6 +37,7 @@ export default function DiagnosticPage() {
   const [questions, setQuestions] = useState<ClientQuestion[]>([]);
   const [preview,   setPreview]   = useState<PreviewQuestion[]>([]);
   const [loading,   setLoading]   = useState(false);
+  const [paywall,   setPaywall]   = useState(false);
 
   // 미리보기 진입: sessionStorage 에 적재된 Mock 문항을 1회 읽고 즉시 폐기(일회성).
   useEffect(() => {
@@ -53,6 +56,21 @@ export default function DiagnosticPage() {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push('/login'); return; }
+
+    // [등급 페이월 가드] Basic 은 최초 진단 모의고사 1회까지만 — 초과 시 업그레이드 유도
+    const { data: profile } = await supabase
+      .from('profiles').select('subscription_status').eq('id', user.id).single();
+    const tier = normalizeTier(profile?.subscription_status ?? null);
+    const { count: diagUsed } = await supabase
+      .from('study_sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('session_type', 'DIAGNOSTIC');
+    if (!canStartDiagnostic(tier, diagUsed ?? 0)) {
+      setPaywall(true);
+      setLoading(false);
+      return;
+    }
 
     const { data: sess, error: sessErr } = await supabase
       .from('study_sessions')
@@ -179,6 +197,11 @@ export default function DiagnosticPage() {
           {loading ? '준비 중…' : chapterId ? '시험 시작' : '진단 시작'}
         </button>
       </div>
+      <PaywallModal
+        open={paywall}
+        onClose={() => setPaywall(false)}
+        feature={chapterId ? '실전 모의고사 무제한 응시' : '추가 진단 모의고사'}
+      />
       </StudentShell>
     );
   }

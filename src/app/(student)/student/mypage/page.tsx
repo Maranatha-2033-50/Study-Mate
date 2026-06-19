@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { StudentShell } from '@/components/layout/StudentChrome';
 import { MyPageView } from '@/components/student/MyPageView';
-import type { CategoryType, SubscriptionStatus } from '@/types';
+import { normalizeTier } from '@/lib/subscription';
+import type { CategoryType } from '@/types';
 
 export const metadata = { title: '마이페이지 | Study Mate' };
 
@@ -33,7 +34,7 @@ export default async function MyPage() {
         name={profile?.name ?? ''}
         email={user.email ?? ''}
         phone={profile?.phone ?? ''}
-        subscription={(profile?.subscription_status as SubscriptionStatus) ?? 'FREE_TRIAL'}
+        subscription={normalizeTier(profile?.subscription_status ?? null)}
         interests={profile?.interest_categories ?? []}
         providers={providers}
         categories={(cats ?? []) as { id: string; type: CategoryType; title: string }[]}

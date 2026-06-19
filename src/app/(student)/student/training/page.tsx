@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { TrainingRoom } from '@/components/student/TrainingRoom';
 import { StudentShell } from '@/components/layout/StudentChrome';
+import { PaywallModal } from '@/components/student/PaywallModal';
+import { normalizeTier, canStartTraining } from '@/lib/subscription';
 import type { StudySession, WeaknessStat } from '@/types';
 
 type LimitType = 'COUNT' | 'TIME';
@@ -21,11 +23,29 @@ export default function TrainingPage() {
   const [weakStats,  setWeakStats]  = useState<WeaknessStat[]>([]);
   const [loading,    setLoading]    = useState(false);
   const [started,    setStarted]    = useState(false);
+  const [paywall,    setPaywall]    = useState(false);
 
   const startTraining = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push('/login'); return; }
+
+    // [등급 페이월 가드] Basic 은 취약 훈련방 1회권까지만 — 초과 시 업그레이드 유도.
+    //  오답노트의 '다시 풀기'(limit_value=1 재도전 세션)는 전용 훈련 카운트에서 제외한다.
+    const { data: profile } = await supabase
+      .from('profiles').select('subscription_status').eq('id', user.id).single();
+    const tier = normalizeTier(profile?.subscription_status ?? null);
+    const { count: trainUsed } = await supabase
+      .from('study_sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('session_type', 'INFINITE_TRAINING')
+      .neq('config->>limit_value', '1');
+    if (!canStartTraining(tier, trainUsed ?? 0)) {
+      setPaywall(true);
+      setLoading(false);
+      return;
+    }
 
     const { data: stats } = await supabase
       .from('weakness_stats')
@@ -99,6 +119,11 @@ export default function TrainingPage() {
           {loading ? '준비 중…' : '훈련 시작'}
         </button>
       </div>
+      <PaywallModal
+        open={paywall}
+        onClose={() => setPaywall(false)}
+        feature="취약 단원 무한 훈련방"
+      />
       </StudentShell>
     );
   }

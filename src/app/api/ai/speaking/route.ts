@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { assessPronunciation, sandboxMetrics, gradeSpeaking, mockSpeakingFeedback } from '@/lib/ai/speaking';
+import { checkAndConsumeToken } from '@/lib/token-guard';
 import type { PronunciationMetrics, SpeakingFeedback } from '@/types';
 
 /* 스피킹 AI 루브릭 채점 라우트.
@@ -25,6 +26,12 @@ export async function POST(req: NextRequest) {
   const file = form.get('audio');
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: 'audio file missing' }, { status: 400 });
+  }
+
+  // [비용 방어 밸브] 스피킹 발음평가+루브릭 채점(LLM) 직전 토큰 검증·차감 (fail-open 스캐폴딩)
+  const guard = await checkAndConsumeToken(supabase, user.id, 1500);
+  if (!guard.ok) {
+    return NextResponse.json({ error: 'UPGRADE_REQUIRED', reason: guard.reason }, { status: 402 });
   }
 
   const duration     = Number(form.get('duration')) || 0;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { callSolar } from '@/lib/ai/clients';
+import { checkAndConsumeToken } from '@/lib/token-guard';
 import type { WrongContext } from '@/types';
 
 /* 자격증·국내외 교과 오답 맹점 분석 — Upstage Solar(한국어 최적화) 서버 사이드 창구.
@@ -59,6 +60,12 @@ export async function POST(req: NextRequest) {
   const ctx = (await req.json()) as Partial<WrongContext>;
   if (!ctx?.question_text) {
     return NextResponse.json({ error: 'Missing wrong context' }, { status: 400 });
+  }
+
+  // [비용 방어 밸브] AI 맹점 분석(LLM) 직전 토큰 검증·차감 (fail-open 스캐폴딩)
+  const guard = await checkAndConsumeToken(supabase, user.id, 1024);
+  if (!guard.ok) {
+    return NextResponse.json({ error: 'UPGRADE_REQUIRED', reason: guard.reason }, { status: 402 });
   }
   const full: WrongContext = {
     question_text:     ctx.question_text,

@@ -3,9 +3,30 @@
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
-  User, Mail, Phone, Link2, Sparkles, Check, Crown, BadgeCheck, Save, Tag,
+  User, Mail, Phone, Link2, Sparkles, Check, Crown, BadgeCheck, Save, Tag, Zap,
 } from 'lucide-react';
 import type { CategoryType, SubscriptionStatus } from '@/types';
+
+/* 등급별 표시 메타 (BASIC | PLUS | PREMIUM) */
+const TIER_META: Record<SubscriptionStatus, {
+  label: string; icon: React.ElementType; chip: string; card: string; blurb: string;
+}> = {
+  BASIC: {
+    label: 'BASIC', icon: Sparkles,
+    chip: 'bg-indigo-100 text-indigo-700', card: 'border-indigo-100 bg-indigo-50/50',
+    blurb: '최초 진단 1회 · AI 플래너 · 취약 훈련방 1회권을 이용할 수 있어요. 업그레이드하면 무제한으로 풀립니다.',
+  },
+  PLUS: {
+    label: 'PLUS', icon: Zap,
+    chip: 'bg-sky-100 text-sky-700', card: 'border-sky-200 bg-sky-50/60',
+    blurb: '실전 모의고사·취약 훈련방 무제한이 활성화되어 있습니다. PREMIUM 으로 올리면 1:1 선생님 질문까지 열려요.',
+  },
+  PREMIUM: {
+    label: 'PREMIUM', icon: Crown,
+    chip: 'bg-amber-100 text-amber-700', card: 'border-amber-200 bg-amber-50/60',
+    blurb: '모든 AI 피처 무제한 + 오답노트 1:1 튜터 Q&A 가 활성화되어 있습니다.',
+  },
+};
 
 interface Cat { id: string; type: CategoryType; title: string }
 
@@ -76,6 +97,8 @@ export function MyPageView({
   const [savingInt, setSI]        = useState(false);
   const [toast, setToast]         = useState<string | null>(null);
 
+  const tierMeta = TIER_META[subscription] ?? TIER_META.BASIC;
+  const TierIcon = tierMeta.icon;
   const isPremium = subscription === 'PREMIUM';
   const linked = (id: string) => providers.includes(id) || (id === 'email' && !!email);
 
@@ -121,9 +144,8 @@ export function MyPageView({
         <div>
           <h1 className="text-2xl font-extrabold leading-tight text-slate-900">{name || '수험생'}님</h1>
           <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-400">
-            {isPremium
-              ? <><Crown size={14} className="text-amber-500" /> 프리미엄 멤버</>
-              : <><Sparkles size={14} className="text-indigo-400" /> 무료 체험 중</>}
+            <TierIcon size={14} className={isPremium ? 'text-amber-500' : 'text-indigo-400'} />
+            {tierMeta.label} 멤버
           </p>
         </div>
       </div>
@@ -181,18 +203,13 @@ export function MyPageView({
 
         {/* 5. 구독 등급 */}
         <Card icon={Crown} title="결제 구독 등급" desc="현재 멤버십 상태">
-          <div className={`rounded-2xl border p-5 ${isPremium ? 'border-amber-200 bg-amber-50/60' : 'border-indigo-100 bg-indigo-50/50'}`}>
+          <div className={`rounded-2xl border p-5 ${tierMeta.card}`}>
             <div className="flex items-center justify-between">
-              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold
-                ${isPremium ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                {isPremium ? <><Crown size={13} /> PREMIUM</> : <><Sparkles size={13} /> FREE TRIAL</>}
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${tierMeta.chip}`}>
+                <TierIcon size={13} /> {tierMeta.label}
               </span>
             </div>
-            <p className="mt-3 text-sm text-slate-600">
-              {isPremium
-                ? '프리미엄 혜택(1:1 튜터 Q&A, 무제한 AI 플랜)이 활성화되어 있습니다.'
-                : '프리미엄으로 업그레이드하면 1:1 튜터 질문과 무제한 AI 플랜을 이용할 수 있어요.'}
-            </p>
+            <p className="mt-3 text-sm text-slate-600">{tierMeta.blurb}</p>
             {!isPremium && (
               <button
                 disabled
@@ -200,7 +217,7 @@ export function MyPageView({
                 className="mt-4 inline-flex cursor-not-allowed items-center gap-1.5 rounded-xl bg-slate-900/90 px-4 py-2.5
                            text-sm font-semibold text-white opacity-60"
               >
-                <Crown size={15} /> 프리미엄 업그레이드 (준비 중)
+                <Crown size={15} /> 등급 업그레이드 (준비 중)
               </button>
             )}
           </div>

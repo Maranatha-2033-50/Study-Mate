@@ -7,6 +7,8 @@ import remarkGfm from 'remark-gfm';
 import { createClient } from '@/lib/supabase/client';
 import { difficultyStyle } from '@/lib/difficulty';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { PaywallModal } from '@/components/student/PaywallModal';
+import { canUseTutorQna, type SubscriptionTier } from '@/lib/subscription';
 import {
   RotateCcw, CheckCircle2, Calendar, AlertTriangle,
   NotebookPen, ChevronRight, Sparkles, Send, X, MessageCircleQuestion, Brain,
@@ -59,8 +61,9 @@ const eq = (a: string, b: string) => a.trim().toUpperCase() === b.trim().toUpper
 
 type RetryResult = 'idle' | 'correct' | 'wrong';
 
-/* items 는 서버에서 활성 도메인(sm_domain)으로 이미 격리되어 전달된다 → 도메인 탭 불필요 */
-export function IncorrectNotebook({ items: initialItems }: { items: IncorrectItem[] }) {
+/* items 는 서버에서 활성 도메인(sm_domain)으로 이미 격리되어 전달된다 → 도메인 탭 불필요.
+   tier: 1:1 과외 툴바([선생님께 질문하기])는 PREMIUM 에서만 개방, 그 외엔 페이월 유도. */
+export function IncorrectNotebook({ items: initialItems, tier }: { items: IncorrectItem[]; tier: SubscriptionTier }) {
   const supabase = createClient();
 
   const [items,      setItems]      = useState<IncorrectItem[]>(initialItems);
@@ -72,6 +75,16 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
   const [askItem, setAskItem] = useState<IncorrectItem | null>(null);
   const [askText, setAskText] = useState('');
   const [asking,  setAsking]  = useState(false);
+  const [paywall, setPaywall] = useState(false);
+
+  const tutorQnaOpen = canUseTutorQna(tier);
+
+  // 1:1 질문 진입 — PREMIUM 만 통과, 그 외엔 페이월 모달
+  const openAsk = (item: IncorrectItem) => {
+    if (!tutorQnaOpen) { setPaywall(true); return; }
+    setAskItem(item);
+    setAskText('');
+  };
 
   // 재도전(미니 퀴즈) 상태
   const [quizMode,   setQuizMode]   = useState(false);
@@ -323,7 +336,7 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
               onPickAnswer={(v) => { setQuizAnswer(v); setQuizResult('idle'); }}
               onSubmit={submitRetry}
               onCancelQuiz={() => { setQuizMode(false); setQuizResult('idle'); }}
-              onAskTutor={() => { setAskItem(selected); setAskText(''); }}
+              onAskTutor={() => openAsk(selected)}
               diffColor={diffColor}
             />
           )}
@@ -402,6 +415,14 @@ export function IncorrectNotebook({ items: initialItems }: { items: IncorrectIte
           </div>
         </div>
       )}
+
+      {/* ── 등급 페이월 모달 (1:1 과외 툴바 초과) ── */}
+      <PaywallModal
+        open={paywall}
+        onClose={() => setPaywall(false)}
+        title="1:1 선생님 질문은 PREMIUM 전용이에요"
+        feature="오답노트 1:1 과외 툴바"
+      />
 
       {/* ── 초록 토스트 ── */}
       {toast && (

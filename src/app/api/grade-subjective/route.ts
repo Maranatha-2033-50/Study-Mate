@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { gradeSubjective, MOCK_IELTS_FEEDBACK } from '@/lib/ai/subjective';
+import { checkAndConsumeToken } from '@/lib/token-guard';
 import type { SubjectiveExamType, SubjectiveFeedback, WeaknessStat } from '@/types';
 
 interface Body {
@@ -20,6 +21,12 @@ export async function POST(req: NextRequest) {
   const body = (await req.json()) as Body;
   if (!body.answer?.trim() || !body.question_text?.trim()) {
     return NextResponse.json({ error: 'Missing answer or question_text' }, { status: 400 });
+  }
+
+  // [비용 방어 밸브] AI 채점기 작동 직전 토큰 검증·차감 (fail-open 스캐폴딩)
+  const guard = await checkAndConsumeToken(supabase, user.id, 2000);
+  if (!guard.ok) {
+    return NextResponse.json({ error: 'UPGRADE_REQUIRED', reason: guard.reason }, { status: 402 });
   }
 
   const userId   = body.user_id ?? user.id;

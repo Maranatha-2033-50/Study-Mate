@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { IncorrectNotebook, type IncorrectItem } from '@/components/student/IncorrectNotebook';
 import { StudentShell } from '@/components/layout/StudentChrome';
 import { DOMAIN_COOKIE, isDomainMode, type DomainMode } from '@/lib/domain';
+import { normalizeTier } from '@/lib/subscription';
 import type { CategoryType, QuestionType, QuestionOptions } from '@/types';
 
 export const metadata = { title: '나의 오답노트 | Study Mate' };
@@ -36,6 +37,11 @@ export default async function IncorrectPage() {
   // [도메인 격리 가드] 활성 도메인(sm_domain) — 타 도메인 오답 혼입 차단
   const domainCookie = (await cookies()).get(DOMAIN_COOKIE)?.value;
   const domain: DomainMode = isDomainMode(domainCookie) ? domainCookie : 'CERT';
+
+  // 등급 — 1:1 과외 툴바([선생님께 질문하기])는 PREMIUM 에서만 개방
+  const { data: profile } = await supabase
+    .from('profiles').select('subscription_status').eq('id', user.id).single();
+  const tier = normalizeTier(profile?.subscription_status ?? null);
 
   // 카테고리 → 유형/제목 매핑
   const { data: categories } = await supabase
@@ -108,7 +114,7 @@ export default async function IncorrectPage() {
 
   return (
     <StudentShell>
-      <IncorrectNotebook items={items} />
+      <IncorrectNotebook items={items} tier={tier} />
     </StudentShell>
   );
 }

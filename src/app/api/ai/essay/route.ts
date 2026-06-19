@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { gradeSubjective, MOCK_IELTS_FEEDBACK } from '@/lib/ai/subjective';
+import { checkAndConsumeToken } from '@/lib/token-guard';
 import type { SubjectiveExamType, SubjectiveFeedback, WeaknessStat } from '@/types';
 
 /* 어학 에세이 첨삭 — OpenAI(gpt-4o-mini) 서버 사이드 창구.
@@ -23,6 +24,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing answer or question_text' }, { status: 400 });
   }
   const examType = body.exam_type ?? 'IELTS';
+
+  // [비용 방어 밸브] AI 첨삭 채점기 작동 직전 토큰 검증·차감 (fail-open 스캐폴딩)
+  const guard = await checkAndConsumeToken(supabase, user.id, 2000);
+  if (!guard.ok) {
+    return NextResponse.json({ error: 'UPGRADE_REQUIRED', reason: guard.reason }, { status: 402 });
+  }
 
   // 취약점 연계 컨텍스트
   const { data: weakRaw } = await supabase

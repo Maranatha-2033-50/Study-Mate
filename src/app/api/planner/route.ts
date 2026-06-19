@@ -21,13 +21,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
   }
 
-  // ── [Paywall Hook — 향후 결제 퍼널 연동 지점] ───────────────────────────────
-  //  무료체험(FREE_TRIAL) 사용자가 플랜을 생성할 때 결제를 유도하기 위한 가드.
-  //  지금은 모든 사용자를 FREE_TRIAL·미잠금으로 간주해 그대로 통과시킨다(no-op).
-  //  결제 퍼널 개통 시: profiles 에 subscription_status/is_plan_locked 컬럼을 추가하고
-  //  아래 값을 프로필에서 읽어와, 잠긴 무료 사용자면 402(UPGRADE_REQUIRED)를 반환하면
-  //  클라이언트에서 결제 모달만 띄우도록 바로 연결된다.
-  const subscriptionStatus = 'FREE_TRIAL' as SubscriptionStatus;
+  // ── [Paywall Hook] ──────────────────────────────────────────────────────────
+  //  AI 플래너는 전 등급(BASIC 포함) 허용 정책이므로 여기서는 게이트하지 않는다(no-op).
+  //  등급별 플랜 한도를 도입할 경우: 프로필에서 subscription_status 를 읽어 잠긴 등급이면
+  //  402(UPGRADE_REQUIRED)를 반환하면 클라이언트가 페이월 모달만 띄우도록 바로 연결된다.
+  const subscriptionStatus = 'BASIC' as SubscriptionStatus;
   const isPlanLocked = false as boolean;
   if (subscriptionStatus !== 'PREMIUM' && isPlanLocked) {
     // return NextResponse.json({ error: 'UPGRADE_REQUIRED' }, { status: 402 });
